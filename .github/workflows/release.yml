@@ -1,0 +1,249 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Copy frontend to assets
+        run: |
+          rm -rf assets/frontend
+          cp -r frontend/build assets/frontend
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+      - name: Build
+        run: go build -v ./cmd/web-cli
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Copy frontend to assets
+        run: |
+          rm -rf assets/frontend
+          cp -r frontend/build assets/frontend
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${VERSION}"
+
+      - name: Build for all platforms
+        run: |
+          mkdir -p build
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/web-cli-linux-amd64 ./cmd/web-cli
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build/web-cli-linux-arm64 ./cmd/web-cli
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build/web-cli-darwin-amd64 ./cmd/web-cli
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build/web-cli-darwin-arm64 ./cmd/web-cli
+
+      - name: Generate checksums
+        run: |
+          cd build
+          sha256sum web-cli-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || echo "")
+
+          cat > CHANGELOG.md << EOF
+          # Release ${VERSION}
+
+          ## Installation
+
+          Download the appropriate binary for your platform and make it executable:
+
+          \`\`\`bash
+          # Linux AMD64
+          wget https://github.com/${{ github.repository }}/releases/download/${VERSION}/web-cli-linux-amd64
+          chmod +x web-cli-linux-amd64
+          sudo mv web-cli-linux-amd64 /usr/local/bin/web-cli
+
+          # Linux ARM64
+          wget https://github.com/${{ github.repository }}/releases/download/${VERSION}/web-cli-linux-arm64
+          chmod +x web-cli-linux-arm64
+          sudo mv web-cli-linux-arm64 /usr/local/bin/web-cli
+
+          # macOS Intel
+          wget https://github.com/${{ github.repository }}/releases/download/${VERSION}/web-cli-darwin-amd64
+          chmod +x web-cli-darwin-amd64
+          sudo mv web-cli-darwin-amd64 /usr/local/bin/web-cli
+
+          # macOS Apple Silicon
+          wget https://github.com/${{ github.repository }}/releases/download/${VERSION}/web-cli-darwin-arm64
+          chmod +x web-cli-darwin-arm64
+          sudo mv web-cli-darwin-arm64 /usr/local/bin/web-cli
+          \`\`\`
+
+          ## Available Binaries
+
+          | Platform | Architecture | Binary |
+          |----------|--------------|--------|
+          | Linux | AMD64 | web-cli-linux-amd64 |
+          | Linux | ARM64 | web-cli-linux-arm64 |
+          | macOS | Intel | web-cli-darwin-amd64 |
+          | macOS | Apple Silicon | web-cli-darwin-arm64 |
+
+          ## Verification
+
+          Verify the integrity of downloaded files:
+          \`\`\`bash
+          sha256sum -c checksums.txt
+          \`\`\`
+
+          ## Changes
+          EOF
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          else
+            echo "" >> CHANGELOG.md
+            echo "Initial release" >> CHANGELOG.md
+          fi
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if gh release view "${VERSION}" --repo ${{ github.repository }} >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new release
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "${VERSION}" \
+            --repo ${{ github.repository }} \
+            --title "Release ${VERSION}" \
+            --notes-file CHANGELOG.md \
+            build/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing release
+        if: steps.check_release.outputs.exists == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release upload "${VERSION}" \
+            --repo ${{ github.repository }} \
+            --clobber \
+            build/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-main:
+    name: Update main branch
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge tag to main
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git checkout main
+          git merge --no-ff "${GITHUB_REF#refs/tags/}" -m "Merge tag '${GITHUB_REF#refs/tags/}' into main"
+          git push origin main

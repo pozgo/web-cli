@@ -1,0 +1,168 @@
+name: Main CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Copy frontend to assets
+        run: |
+          rm -rf assets/frontend
+          cp -r frontend/build assets/frontend
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Build
+        run: go build -v ./cmd/web-cli
+
+      - name: Build all platforms
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o web-cli-linux-amd64 ./cmd/web-cli
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o web-cli-linux-arm64 ./cmd/web-cli
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o web-cli-darwin-amd64 ./cmd/web-cli
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o web-cli-darwin-arm64 ./cmd/web-cli
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Copy frontend to assets
+        run: |
+          rm -rf assets/frontend
+          cp -r frontend/build assets/frontend
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go code is not formatted:"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+  security:
+    name: Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Copy frontend to assets
+        run: |
+          rm -rf assets/frontend
+          cp -r frontend/build assets/frontend
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check for hardcoded credentials
+        run: |
+          if grep -rI "password.*=" . \
+            --exclude-dir=".git" \
+            --exclude-dir="frontend" \
+            --exclude-dir="node_modules" \
+            --exclude-dir="build" \
+            --exclude="*.yml" \
+            --exclude="*.yaml" \
+            --exclude="*.md" \
+            --exclude="*.js" \
+            --exclude="*.jsx" \
+            --exclude="*.json" | \
+            grep -v "^[[:space:]]*\/\/" | \
+            grep -v 'json:' | \
+            grep -v '`json:' | \
+            grep -v "Password.*string"; then
+            echo "Potential hardcoded credentials found"
+            exit 1
+          fi

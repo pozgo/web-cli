@@ -1,0 +1,61 @@
+# Binaries
+bin/
+/web-cli
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Assets (generated)
+assets/frontend/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.log
+
+# Database and encryption
+data/
+.encryption_key
+*.db
+*.db-shm
+*.db-wal
+
+# Process management
+.web-cli.pid
