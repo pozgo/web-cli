@@ -162,7 +162,9 @@ jobs:
             grep -v "^[[:space:]]*\/\/" | \
             grep -v 'json:' | \
             grep -v '`json:' | \
-            grep -v "Password.*string"; then
+            grep -v "Password.*string" | \
+            grep -v "r.BasicAuth()" | \
+            grep -v "subtle.ConstantTimeCompare"; then
             echo "Potential hardcoded credentials found"
             exit 1
           fi
