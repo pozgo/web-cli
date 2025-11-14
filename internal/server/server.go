@@ -45,11 +45,11 @@ func (s *Server) setupRoutes() {
 	// Load auth configuration
 	authConfig := middleware.LoadAuthConfig()
 
+	// Apply authentication middleware to ALL routes (frontend + API)
+	s.router.Use(middleware.BasicAuth(authConfig))
+
 	// API routes
 	api := s.router.PathPrefix("/api").Subrouter()
-
-	// Apply authentication middleware to all API routes
-	api.Use(middleware.BasicAuth(authConfig))
 
 	// Health endpoint (authenticated)
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
@@ -94,9 +94,9 @@ func (s *Server) setupRoutes() {
 
 	// Log auth status
 	if authConfig.Enabled {
-		log.Println("API authentication is ENABLED")
+		log.Println("Authentication is ENABLED for entire application (frontend + API)")
 	} else {
-		log.Println("WARNING: API authentication is DISABLED (set AUTH_ENABLED=true for production)")
+		log.Println("WARNING: Authentication is DISABLED (set AUTH_ENABLED=true for production)")
 	}
 
 	// Serve static files from frontend build
