@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -13,13 +15,41 @@ import (
 
 // RemoteExecutor handles execution of commands on remote machines via SSH
 type RemoteExecutor struct {
-	defaultTimeout time.Duration
+	defaultTimeout  time.Duration
+	hostKeyVerifier *HostKeyVerifier
 }
 
 // NewRemoteExecutor creates a new remote command executor
 func NewRemoteExecutor() *RemoteExecutor {
+	return NewRemoteExecutorWithHostKeys("", false)
+}
+
+// NewRemoteExecutorWithHostKeys creates a new remote executor with host key verification
+// knownHostsPath: path to known_hosts file (empty string for default ~/.ssh/known_hosts)
+// trustOnFirstUse: automatically trust and save new host keys
+func NewRemoteExecutorWithHostKeys(knownHostsPath string, trustOnFirstUse bool) *RemoteExecutor {
+	// Default to ~/.ssh/known_hosts if not specified
+	if knownHostsPath == "" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			knownHostsPath = filepath.Join(home, ".ssh", "known_hosts")
+		} else {
+			knownHostsPath = ".ssh/known_hosts"
+		}
+	}
+
+	verifier, err := NewHostKeyVerifier(knownHostsPath, trustOnFirstUse)
+	if err != nil {
+		// Fall back to insecure mode if verifier fails
+		return &RemoteExecutor{
+			defaultTimeout:  5 * time.Minute,
+			hostKeyVerifier: nil,
+		}
+	}
+
 	return &RemoteExecutor{
-		defaultTimeout: 5 * time.Minute, // Default 5 minute timeout
+		defaultTimeout:  5 * time.Minute,
+		hostKeyVerifier: verifier,
 	}
 }
 
@@ -42,9 +72,17 @@ func (e *RemoteExecutor) Execute(ctx context.Context, command string, config *SS
 	defer cancel()
 
 	// Prepare SSH client configuration
+	var hostKeyCallback ssh.HostKeyCallback
+	if e.hostKeyVerifier != nil {
+		hostKeyCallback = e.hostKeyVerifier.GetHostKeyCallback()
+	} else {
+		// Fallback to insecure mode if no verifier configured
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User:            config.Username,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: In production, verify host keys
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 		Auth:            []ssh.AuthMethod{},
 	}

@@ -7,10 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pozgo/web-cli/internal/config"
 	"github.com/pozgo/web-cli/internal/database"
+	"github.com/pozgo/web-cli/internal/middleware"
 	"github.com/rs/cors"
 )
 
@@ -39,8 +42,16 @@ func New(cfg *config.Config, db *database.DB) *Server {
 
 // setupRoutes configures all HTTP routes
 func (s *Server) setupRoutes() {
+	// Load auth configuration
+	authConfig := middleware.LoadAuthConfig()
+
 	// API routes
 	api := s.router.PathPrefix("/api").Subrouter()
+
+	// Apply authentication middleware to all API routes
+	api.Use(middleware.BasicAuth(authConfig))
+
+	// Health endpoint (authenticated)
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	// SSH Keys endpoints
@@ -80,6 +91,13 @@ func (s *Server) setupRoutes() {
 
 	// System info endpoints
 	api.HandleFunc("/system/current-user", s.handleGetCurrentUser).Methods("GET")
+
+	// Log auth status
+	if authConfig.Enabled {
+		log.Println("API authentication is ENABLED")
+	} else {
+		log.Println("WARNING: API authentication is DISABLED (set AUTH_ENABLED=true for production)")
+	}
 
 	// Serve static files from frontend build
 	s.serveFrontend()
@@ -182,9 +200,19 @@ func (s *Server) serveErrorPage() {
 
 // Start begins listening for HTTP requests
 func (s *Server) Start() error {
-	// Setup CORS
+	// Get allowed origins from environment, default to localhost only
+	allowedOrigins := []string{"http://localhost:7777", "http://127.0.0.1:7777"}
+	if envOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); envOrigins != "" {
+		// Split by comma for multiple origins
+		allowedOrigins = strings.Split(envOrigins, ",")
+		for i := range allowedOrigins {
+			allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
+		}
+	}
+
+	// Setup CORS with restrictive defaults
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
@@ -197,6 +225,16 @@ func (s *Server) Start() error {
 	log.Printf("Starting server on %s", addr)
 	log.Printf("Frontend path: %s", s.config.FrontendPath)
 	log.Printf("Database path: %s", s.config.DatabasePath)
+	log.Printf("CORS allowed origins: %v", allowedOrigins)
 
-	return http.ListenAndServe(addr, handler)
+	// Create HTTP server with proper timeouts
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	return server.ListenAndServe()
 }

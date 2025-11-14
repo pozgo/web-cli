@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os/user"
@@ -12,6 +13,7 @@ import (
 	"github.com/pozgo/web-cli/internal/executor"
 	"github.com/pozgo/web-cli/internal/models"
 	"github.com/pozgo/web-cli/internal/repository"
+	"github.com/pozgo/web-cli/internal/validation"
 )
 
 // handleListSSHKeys returns all SSH keys
@@ -39,13 +41,13 @@ func (s *Server) handleCreateSSHKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate input
-	if keyCreate.Name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
+	if err := validation.ValidateCommandName(keyCreate.Name); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	if keyCreate.PrivateKey == "" {
-		http.Error(w, "Private key is required", http.StatusBadRequest)
+	if err := validation.ValidateSSHPrivateKey(keyCreate.PrivateKey); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid SSH private key: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -174,6 +176,38 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	if serverCreate.Name == "" && serverCreate.IPAddress == "" {
 		http.Error(w, "At least one of name or ip_address must be provided", http.StatusBadRequest)
 		return
+	}
+
+	// Validate hostname if provided
+	if serverCreate.Name != "" {
+		if err := validation.ValidateHostname(serverCreate.Name); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid hostname: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate IP address if provided
+	if serverCreate.IPAddress != "" {
+		if err := validation.ValidateIPOrHostname(serverCreate.IPAddress); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid IP address or hostname: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate port if provided
+	if serverCreate.Port > 0 {
+		if err := validation.ValidatePort(serverCreate.Port); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid port: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate username if provided
+	if serverCreate.Username != "" {
+		if err := validation.ValidateUsername(serverCreate.Username); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid username: %v", err), http.StatusBadRequest)
+			return
+		}
 	}
 
 	repo := repository.NewServerRepository(s.db)

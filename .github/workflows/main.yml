@@ -39,7 +39,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -90,7 +90,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -136,7 +136,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5

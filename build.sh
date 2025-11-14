@@ -6,7 +6,7 @@
 #   ./build.sh        - Build web-cli binary in root directory for quick testing
 #   ./build.sh all    - Build all platform binaries and store in bin/ directory
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -20,11 +20,46 @@ BUILD_DIR="bin"
 
 echo -e "${GREEN}Building Web CLI v${VERSION}${NC}"
 
+# Check if npm is installed
+if ! command -v npm &> /dev/null; then
+    echo -e "${RED}npm not found. Please install Node.js first${NC}"
+    exit 1
+fi
+
 # Build frontend first
 echo -e "${YELLOW}Building frontend...${NC}"
+if [ ! -d "frontend" ]; then
+    echo -e "${RED}Frontend directory not found${NC}"
+    exit 1
+fi
+
 cd frontend
+
+# Check if node_modules exists, install if needed
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+    npm install
+fi
+
+# Build frontend
+echo -e "${YELLOW}Running frontend build...${NC}"
 npm run build
+
+# Verify build output exists
+if [ ! -d "dist" ]; then
+    echo -e "${RED}Frontend build failed - dist directory not created${NC}"
+    cd ..
+    exit 1
+fi
+
 cd ..
+
+# Copy frontend dist to assets/frontend for Go embed
+echo -e "${YELLOW}Copying frontend to assets directory...${NC}"
+rm -rf assets/frontend
+mkdir -p assets/frontend
+cp -r frontend/dist/* assets/frontend/
+
 echo -e "${GREEN}Frontend build completed!${NC}"
 
 # Function to build for a specific platform
@@ -49,7 +84,7 @@ fi
 # Build all platforms
 if [ "$1" == "all" ]; then
     # Create bin directory if it doesn't exist
-    mkdir -p $BUILD_DIR
+    mkdir -p "$BUILD_DIR"
 
     # Build for different platforms
     build_platform "linux" "amd64" "${BUILD_DIR}/${APP_NAME}-linux-x64"
