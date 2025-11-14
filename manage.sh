@@ -48,7 +48,49 @@ start() {
         exit 1
     fi
 
-    # Start the server in background
+    # Generate random password for testing
+    echo -e "${YELLOW}Generating test credentials...${NC}"
+    
+    # Check if openssl is available
+    if command -v openssl &> /dev/null; then
+        AUTH_PASSWORD=$(openssl rand -base64 16)
+    else
+        # Fallback to simple random generation
+        AUTH_PASSWORD="test-$(date +%s)-$(( RANDOM % 10000 ))"
+    fi
+    
+    AUTH_USERNAME="admin"
+    
+    # Export environment variables for authentication
+    export AUTH_ENABLED=true
+    export AUTH_USERNAME="$AUTH_USERNAME"
+    export AUTH_PASSWORD="$AUTH_PASSWORD"
+    
+    # Save credentials to file for reference
+    cat > .web-cli-credentials << EOF
+# Web CLI Test Credentials
+# Generated: $(date)
+# ========================================
+Username: $AUTH_USERNAME
+Password: $AUTH_PASSWORD
+
+# Basic Auth cURL Example:
+curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$PORT/api/health
+
+# Web Browser:
+Visit http://localhost:$PORT and login with the credentials above
+EOF
+    
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}  Test Credentials (saved to .web-cli-credentials)${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${YELLOW}  Username: ${NC}$AUTH_USERNAME"
+    echo -e "${YELLOW}  Password: ${NC}$AUTH_PASSWORD"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    
+    # Start the server in background with auth enabled
     ./$APP_NAME &
     PID=$!
     echo $PID > "$PID_FILE"
@@ -58,9 +100,15 @@ start() {
     if is_running; then
         echo -e "${GREEN}$APP_NAME started successfully (PID: $PID)${NC}"
         echo -e "${GREEN}Access the application at http://localhost:$PORT${NC}"
+        echo -e "${YELLOW}Authentication is ENABLED - use credentials above${NC}"
+        echo ""
+        echo -e "${YELLOW}Quick test:${NC}"
+        echo -e "  curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$PORT/api/health"
+        echo ""
     else
         echo -e "${RED}Failed to start $APP_NAME${NC}"
         rm -f "$PID_FILE"
+        rm -f .web-cli-credentials
         exit 1
     fi
 }
@@ -100,6 +148,7 @@ stop() {
     fi
     
     rm -f "$PID_FILE"
+    rm -f .web-cli-credentials
 
     echo -e "${GREEN}$APP_NAME stopped${NC}"
 }
@@ -118,6 +167,13 @@ status() {
         PID=$(cat "$PID_FILE")
         echo -e "${GREEN}$APP_NAME is running (PID: $PID)${NC}"
         echo -e "${GREEN}Access the application at http://localhost:$PORT${NC}"
+        
+        # Show credentials if file exists
+        if [ -f ".web-cli-credentials" ]; then
+            echo ""
+            echo -e "${YELLOW}Test credentials available in: .web-cli-credentials${NC}"
+            echo -e "${YELLOW}To view: cat .web-cli-credentials${NC}"
+        fi
     else
         echo -e "${RED}$APP_NAME is not running${NC}"
     fi

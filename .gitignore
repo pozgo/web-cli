@@ -59,3 +59,4 @@ data/
 
 # Process management
 .web-cli.pid
+.web-cli-credentials
