@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Ansi from 'ansi-to-react';
 import {
   Container,
   Typography,
@@ -242,8 +243,8 @@ const CommandHistory = () => {
               <Paper
                 sx={{
                   p: 2,
-                  backgroundColor: '#1e1e1e',
-                  color: '#d4d4d4',
+                  backgroundColor: '#0a0a0a',
+                  color: '#e0e0e0',
                   maxHeight: 400,
                   overflow: 'auto',
                 }}
@@ -256,9 +257,19 @@ const CommandHistory = () => {
                     margin: 0,
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
+                    // Override ANSI colors for better visibility
+                    '& .ansi-blue-fg': { color: '#5c9cff !important' },
+                    '& .ansi-bright-blue-fg': { color: '#6eb5ff !important' },
+                    '& .ansi-red-fg': { color: '#ff6b6b !important' },
+                    '& .ansi-bright-red-fg': { color: '#ff8787 !important' },
+                    // Also try inline style overrides
+                    '& span[style*="34m"]': { color: '#5c9cff !important' },
+                    '& span[style*="94m"]': { color: '#6eb5ff !important' },
+                    '& span[style*="31m"]': { color: '#ff6b6b !important' },
+                    '& span[style*="91m"]': { color: '#ff8787 !important' },
                   }}
                 >
-                  {selectedEntry.output || '(no output)'}
+                  <Ansi useClasses>{selectedEntry.output || '(no output)'}</Ansi>
                 </Typography>
               </Paper>
             </Box>
