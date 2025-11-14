@@ -7,7 +7,7 @@
 #   ./manage.sh restart - Restart the server
 #   ./manage.sh status  - Check if server is running
 
-set -e
+set -euo pipefail
 
 APP_NAME="web-cli"
 PID_FILE=".web-cli.pid"
@@ -82,7 +82,23 @@ stop() {
     PID=$(cat "$PID_FILE")
     echo -e "${YELLOW}Stopping $APP_NAME (PID: $PID)...${NC}"
 
-    kill "$PID"
+    # Try graceful shutdown first
+    kill "$PID" 2>/dev/null || true
+    
+    # Wait up to 5 seconds for process to terminate
+    for i in {1..5}; do
+        if ! ps -p "$PID" > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    
+    # Force kill if still running
+    if ps -p "$PID" > /dev/null 2>&1; then
+        echo -e "${YELLOW}Process did not terminate gracefully, forcing...${NC}"
+        kill -9 "$PID" 2>/dev/null || true
+    fi
+    
     rm -f "$PID_FILE"
 
     echo -e "${GREEN}$APP_NAME stopped${NC}"

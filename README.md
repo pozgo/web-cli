@@ -53,7 +53,12 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **Command History**: Complete execution history with output, exit codes, and timing
 
 ### Security
+- **Authentication**: HTTP Basic Auth and Bearer token support (configurable)
+- **SSH Host Key Verification**: Proper host key checking against known_hosts
+- **Input Validation**: Comprehensive validation for all user inputs
 - **Encrypted Database**: SQLite with AES-256-GCM encryption for sensitive data
+- **HTTP Timeouts**: Protection against slowloris and DoS attacks
+- **CORS Policy**: Restrictive CORS with configurable origins
 - **Secure Password Handling**: SSH passwords never stored in command history
 - **Automatic Encryption**: All SSH keys and command history encrypted at rest
 - **Database Migrations**: Automatic schema versioning and migration system
@@ -64,8 +69,10 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[Go 1.21+](https://golang.org/)**: High-performance backend server
 - **[Gorilla Mux](https://github.com/gorilla/mux)**: HTTP router for API endpoints
 - **[SQLite](https://www.sqlite.org/)**: Embedded database with migration support
-- **[golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh)**: SSH client implementation
+- **[golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh)**: SSH client with host key verification
 - **AES-256-GCM**: Military-grade encryption for sensitive data
+- **Authentication Middleware**: HTTP Basic Auth and Bearer token support
+- **Input Validation**: Comprehensive validation for security
 
 ### Frontend
 - **[React 18](https://react.dev/)**: Modern UI library
@@ -229,16 +236,18 @@ For detailed API documentation including:
 
 ### 💡 Common Use Cases
 
+**Note:** If authentication is enabled, add `-u username:password` or `-H "Authorization: Bearer token"` to all requests.
+
 **Execute a local command**:
 ```bash
-curl -X POST http://localhost:7777/api/commands/execute \
+curl -u admin:password -X POST http://localhost:7777/api/commands/execute \
   -H "Content-Type: application/json" \
   -d '{"command": "df -h", "user": "root"}'
 ```
 
 **Execute a remote command via SSH**:
 ```bash
-curl -X POST http://localhost:7777/api/commands/execute \
+curl -u admin:password -X POST http://localhost:7777/api/commands/execute \
   -H "Content-Type: application/json" \
   -d '{
     "command": "uptime",
@@ -250,7 +259,15 @@ curl -X POST http://localhost:7777/api/commands/execute \
 
 **List command history**:
 ```bash
-curl "http://localhost:7777/api/history?limit=10&server=local"
+curl -u admin:password "http://localhost:7777/api/history?limit=10&server=local"
+```
+
+**Using Bearer Token**:
+```bash
+curl -H "Authorization: Bearer your-api-token" \
+  -X POST http://localhost:7777/api/commands/execute \
+  -H "Content-Type: application/json" \
+  -d '{"command": "uptime", "user": "current"}'
 ```
 
 ## ⚙️ Configuration
@@ -263,7 +280,7 @@ curl "http://localhost:7777/api/history?limit=10&server=local"
 Options:
   -port int             Port to listen on (default: 7777)
   -host string          Host to bind to (default: 0.0.0.0)
-  -frontend string      Path to frontend build files (default: ./frontend/build)
+  -frontend string      Path to frontend build files (default: ./frontend/dist)
   -db string            Path to database file (default: ./data/web-cli.db)
   -encryption-key string Path to encryption key file (default: ./.encryption_key)
 ```
@@ -281,6 +298,88 @@ PORT=8080 HOST=localhost ./web-cli
 3. Default values (lowest priority)
 
 ## 🔒 Security
+
+### Authentication (Production Ready)
+
+**Important: Authentication is disabled by default for development convenience.**
+
+For production deployments, enable authentication:
+
+```bash
+# Enable authentication
+export AUTH_ENABLED=true
+
+# Option 1: HTTP Basic Authentication
+export AUTH_USERNAME="admin"
+export AUTH_PASSWORD="your-secure-password"
+
+# Option 2: API Token (Bearer)
+export AUTH_API_TOKEN="your-api-token-here"
+```
+
+**Features:**
+- HTTP Basic Authentication support
+- Bearer token (API token) support  
+- Constant-time credential comparison (prevents timing attacks)
+- Supports both methods simultaneously (token takes precedence)
+
+**Usage Examples:**
+
+```bash
+# Basic Auth
+curl -u admin:password http://localhost:7777/api/health
+
+# Bearer Token
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
+```
+
+### SSH Host Key Verification
+
+**Replaced insecure SSH connection with proper host key verification:**
+
+- Verifies SSH host keys against `~/.ssh/known_hosts`
+- Supports "trust on first use" mode for development
+- Detects man-in-the-middle attacks (host key mismatch)
+- Automatically saves new trusted host keys
+- Thread-safe implementation
+
+**Configuration:**
+- **Strict Mode** (production): Rejects unknown hosts
+- **Trust-on-First-Use** (development): Automatically trusts new hosts
+
+### Input Validation
+
+**All user inputs are validated before processing:**
+
+- IP addresses (IPv4/IPv6)
+- Hostnames (RFC 1123 compliant)
+- Port numbers (1-65535)
+- SSH private keys (format validation)
+- Unix usernames (alphanumeric, dash, underscore)
+- Command names (no null bytes or newlines)
+
+### HTTP Security
+
+**Server configured with proper timeouts:**
+
+```go
+ReadTimeout:  15 * time.Second  // Prevents slowloris attacks
+WriteTimeout: 15 * time.Second  // Prevents slow writes  
+IdleTimeout:  60 * time.Second  // Prevents idle connections
+```
+
+**CORS Policy:**
+
+- Default: localhost only
+- Production: Configure via `CORS_ALLOWED_ORIGINS` environment variable
+
+```bash
+# Single origin
+export CORS_ALLOWED_ORIGINS="https://web-cli.example.com"
+
+# Multiple origins (comma-separated)
+export CORS_ALLOWED_ORIGINS="https://web-cli.example.com,https://admin.example.com"
+```
 
 ### Database Encryption
 
@@ -367,7 +466,13 @@ User=www-data
 WorkingDirectory=/opt/web-cli
 ExecStart=/opt/web-cli/web-cli
 Restart=on-failure
-Environment=ENCRYPTION_KEY=your-key-here
+
+# Security Configuration (REQUIRED for production)
+Environment=AUTH_ENABLED=true
+Environment=AUTH_USERNAME=admin
+Environment=AUTH_PASSWORD=your-secure-password-here
+Environment=CORS_ALLOWED_ORIGINS=https://web-cli.yourdomain.com
+Environment=ENCRYPTION_KEY=your-encryption-key-here
 
 [Install]
 WantedBy=multi-user.target
@@ -379,6 +484,59 @@ Enable and start:
 sudo systemctl enable web-cli
 sudo systemctl start web-cli
 sudo systemctl status web-cli
+```
+
+### Production Deployment Checklist
+
+Before deploying to production, ensure:
+
+**Security Configuration:**
+- ✅ **Authentication enabled**: Set `AUTH_ENABLED=true`
+- ✅ **Strong credentials**: Configure `AUTH_USERNAME` and `AUTH_PASSWORD` (or `AUTH_API_TOKEN`)
+- ✅ **SSH host key verification**: Enabled by default (uses `~/.ssh/known_hosts`)
+- ✅ **CORS restricted**: Set `CORS_ALLOWED_ORIGINS` to your domain(s)
+- ✅ **HTTP timeouts**: Configured automatically (prevents DoS attacks)
+- ✅ **Input validation**: All inputs validated automatically
+
+**Additional Requirements:**
+- [ ] **HTTPS enabled**: Use reverse proxy (nginx/caddy) with TLS certificates
+- [ ] **Encryption key backup**: Backup `.encryption_key` - data cannot be recovered without it
+- [ ] **Security scan**: Run `gosec ./...` or similar security scanner
+- [ ] **Monitor logs**: Check for authentication failures and errors
+- [ ] **Firewall configured**: Restrict access to authorized IPs if possible
+
+**Production Environment Variables:**
+
+```bash
+# Authentication (REQUIRED for production)
+AUTH_ENABLED=true
+AUTH_USERNAME=admin
+AUTH_PASSWORD=$(openssl rand -base64 32)  # Or your secure password
+# OR use API token
+AUTH_API_TOKEN=$(openssl rand -base64 32)
+
+# CORS Policy (REQUIRED for production)
+CORS_ALLOWED_ORIGINS=https://web-cli.yourdomain.com
+
+# Encryption (REQUIRED)
+ENCRYPTION_KEY=$(openssl rand -base64 32)
+
+# Server Config (Optional)
+PORT=7777
+HOST=0.0.0.0
+```
+
+**Testing Authentication:**
+
+```bash
+# Should fail (no auth)
+curl http://localhost:7777/api/health
+
+# Should succeed with Basic Auth
+curl -u admin:password http://localhost:7777/api/health
+
+# Should succeed with Bearer token
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 ```
 
 ### Docker (Optional)
@@ -447,9 +605,12 @@ web-cli/
 │   ├── config/            # Configuration management
 │   ├── database/          # Database, migrations, encryption
 │   ├── executor/          # Command execution (local & remote)
+│   │   └── hostkeys.go    # SSH host key verification
+│   ├── middleware/        # HTTP middleware (authentication)
 │   ├── models/            # Data models
 │   ├── repository/        # Data access layer
-│   └── server/            # HTTP server and handlers
+│   ├── server/            # HTTP server and handlers
+│   └── validation/        # Input validation functions
 ├── frontend/              # React application
 │   ├── src/
 │   │   ├── components/    # React components
@@ -458,6 +619,7 @@ web-cli/
 │   └── vite.config.js     # Vite configuration
 ├── build.sh               # Build script (all platforms)
 ├── manage.sh              # Server management script
+├── API.md                 # Complete API documentation
 └── go.mod                 # Go dependencies
 ```
 
@@ -488,6 +650,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For issues and questions:
 - 📫 Open an issue on [GitHub Issues](https://github.com/pozgo/web-cli/issues)
 - 📖 Check the [API Documentation](API.md)
+- 🔒 Review [Security Improvements](SECURITY_IMPROVEMENTS.md) for security features
 - 🤖 See [CLAUDE.md](CLAUDE.md) for AI development guidance
 
 ## 🙏 Acknowledgments

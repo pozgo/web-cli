@@ -40,7 +40,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -84,7 +84,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -130,7 +130,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -156,7 +156,9 @@ jobs:
             grep -v "^[[:space:]]*\/\/" | \
             grep -v 'json:' | \
             grep -v '`json:' | \
-            grep -v "Password.*string"; then
+            grep -v "Password.*string" | \
+            grep -v "r.BasicAuth()" | \
+            grep -v "subtle.ConstantTimeCompare"; then
             echo "Potential hardcoded credentials found"
             exit 1
           fi
@@ -201,7 +203,7 @@ jobs:
       - name: Copy frontend to assets
         run: |
           rm -rf assets/frontend
-          cp -r frontend/build assets/frontend
+          cp -r frontend/dist assets/frontend
 
       - name: Generate dev version
         id: version
