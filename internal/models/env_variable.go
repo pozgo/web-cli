@@ -31,7 +31,7 @@ type EnvVariableUpdate struct {
 type EnvVariableResponse struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
-	Value       string    `json:"value"`       // Will be masked unless explicitly requested
+	Value       string    `json:"value"` // Will be masked unless explicitly requested
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

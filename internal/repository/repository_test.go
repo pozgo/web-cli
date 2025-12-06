@@ -440,7 +440,6 @@ func TestBashScriptRepositoryWithoutOptionalFields(t *testing.T) {
 	}
 }
 
-
 func TestScriptPresetRepository(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
