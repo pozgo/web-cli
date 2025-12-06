@@ -210,10 +210,17 @@ const CommandHistory = () => {
               <Typography variant="subtitle2" sx={{ mt: 2 }}>
                 Command:
               </Typography>
-              <Paper sx={{ p: 2, backgroundColor: '#f5f5f5', mb: 2 }}>
+              <Paper sx={{ p: 2, backgroundColor: '#1a1a1a', mb: 2 }}>
                 <Typography
                   component="pre"
-                  sx={{ fontFamily: 'monospace', fontSize: '0.875rem', margin: 0 }}
+                  sx={{ 
+                    fontFamily: 'monospace', 
+                    fontSize: '0.875rem', 
+                    margin: 0,
+                    color: '#e0e0e0',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
                 >
                   {selectedEntry.command}
                 </Typography>

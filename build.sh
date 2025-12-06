@@ -38,7 +38,7 @@ cd frontend
 # Check if node_modules exists, install if needed
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    npm install
+    npm install --legacy-peer-deps
 fi
 
 # Build frontend

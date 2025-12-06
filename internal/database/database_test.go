@@ -70,8 +70,8 @@ func TestDatabaseCreation(t *testing.T) {
 		t.Fatalf("Failed to get version: %v", err)
 	}
 
-	if version != 11 {
-		t.Errorf("Expected schema version 11, got %d", version)
+	if version != 14 {
+		t.Errorf("Expected schema version 14, got %d", version)
 	}
 
 	// Verify all tables exist
@@ -82,6 +82,8 @@ func TestDatabaseCreation(t *testing.T) {
 		"servers",
 		"saved_commands",
 		"local_users",
+		"env_variables",
+		"bash_scripts",
 	}
 
 	for _, table := range tables {
@@ -123,6 +125,24 @@ func TestDatabaseCreation(t *testing.T) {
 		err = db.conn.QueryRow("SELECT name FROM pragma_table_info('saved_commands') WHERE name=?", field).Scan(&columnName)
 		if err != nil {
 			t.Errorf("saved_commands table should have %s column after migration 11", field)
+		}
+	}
+
+	// Verify env_variables table has correct columns (migration 12)
+	envVarFields := []string{"id", "name", "value_encrypted", "description", "created_at", "updated_at"}
+	for _, field := range envVarFields {
+		err = db.conn.QueryRow("SELECT name FROM pragma_table_info('env_variables') WHERE name=?", field).Scan(&columnName)
+		if err != nil {
+			t.Errorf("env_variables table should have %s column after migration 12", field)
+		}
+	}
+
+	// Verify bash_scripts table has correct columns (migration 13)
+	bashScriptFields := []string{"id", "name", "description", "content_encrypted", "filename", "created_at", "updated_at"}
+	for _, field := range bashScriptFields {
+		err = db.conn.QueryRow("SELECT name FROM pragma_table_info('bash_scripts') WHERE name=?", field).Scan(&columnName)
+		if err != nil {
+			t.Errorf("bash_scripts table should have %s column after migration 13", field)
 		}
 	}
 }

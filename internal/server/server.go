@@ -92,6 +92,29 @@ func (s *Server) setupRoutes() {
 	// System info endpoints
 	api.HandleFunc("/system/current-user", s.handleGetCurrentUser).Methods("GET")
 
+	// Environment variables endpoints
+	api.HandleFunc("/env-variables", s.handleListEnvVariables).Methods("GET")
+	api.HandleFunc("/env-variables", s.handleCreateEnvVariable).Methods("POST")
+	api.HandleFunc("/env-variables/{id}", s.handleGetEnvVariable).Methods("GET")
+	api.HandleFunc("/env-variables/{id}", s.handleUpdateEnvVariable).Methods("PUT")
+	api.HandleFunc("/env-variables/{id}", s.handleDeleteEnvVariable).Methods("DELETE")
+
+	// Bash scripts endpoints
+	api.HandleFunc("/bash-scripts", s.handleListBashScripts).Methods("GET")
+	api.HandleFunc("/bash-scripts", s.handleCreateBashScript).Methods("POST")
+	api.HandleFunc("/bash-scripts/{id}", s.handleGetBashScript).Methods("GET")
+	api.HandleFunc("/bash-scripts/{id}", s.handleUpdateBashScript).Methods("PUT")
+	api.HandleFunc("/bash-scripts/{id}", s.handleDeleteBashScript).Methods("DELETE")
+	api.HandleFunc("/bash-scripts/execute", s.handleExecuteScript).Methods("POST")
+	api.HandleFunc("/bash-scripts/{id}/presets", s.handleGetScriptPresetsByScript).Methods("GET")
+
+	// Script preset endpoints
+	api.HandleFunc("/script-presets", s.handleListScriptPresets).Methods("GET")
+	api.HandleFunc("/script-presets", s.handleCreateScriptPreset).Methods("POST")
+	api.HandleFunc("/script-presets/{id}", s.handleGetScriptPreset).Methods("GET")
+	api.HandleFunc("/script-presets/{id}", s.handleUpdateScriptPreset).Methods("PUT")
+	api.HandleFunc("/script-presets/{id}", s.handleDeleteScriptPreset).Methods("DELETE")
+
 	// Log auth status
 	if authConfig.Enabled {
 		log.Println("Authentication is ENABLED for entire application (frontend + API)")

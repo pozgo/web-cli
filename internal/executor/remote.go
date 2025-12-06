@@ -20,8 +20,12 @@ type RemoteExecutor struct {
 }
 
 // NewRemoteExecutor creates a new remote command executor
+// Uses InsecureIgnoreHostKey for simplicity - suitable for internal/trusted networks
 func NewRemoteExecutor() *RemoteExecutor {
-	return NewRemoteExecutorWithHostKeys("", false)
+	return &RemoteExecutor{
+		defaultTimeout:  5 * time.Minute,
+		hostKeyVerifier: nil, // Will use ssh.InsecureIgnoreHostKey()
+	}
 }
 
 // NewRemoteExecutorWithHostKeys creates a new remote executor with host key verification
@@ -89,18 +93,40 @@ func (e *RemoteExecutor) Execute(ctx context.Context, command string, config *SS
 
 	// Try private key authentication first if key is provided
 	if config.PrivateKey != "" {
-		signer, err := ssh.ParsePrivateKey([]byte(config.PrivateKey))
-		if err == nil {
+		var signer ssh.Signer
+		var err error
+
+		// First try without passphrase
+		signer, err = ssh.ParsePrivateKey([]byte(config.PrivateKey))
+		if err != nil {
+			// If parsing failed and we have a password, try it as a passphrase
+			if config.Password != "" {
+				signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(config.PrivateKey), []byte(config.Password))
+				if err != nil {
+					fmt.Printf("Warning: Failed to parse private key with passphrase: %v\n", err)
+				}
+			} else {
+				fmt.Printf("Warning: Failed to parse private key (may require passphrase): %v\n", err)
+			}
+		}
+
+		if signer != nil {
 			sshConfig.Auth = append(sshConfig.Auth, ssh.PublicKeys(signer))
-		} else {
-			// Log key parse error but continue to try password
-			fmt.Printf("Warning: Failed to parse private key: %v\n", err)
 		}
 	}
 
-	// Add password authentication if provided
+	// Add password authentication as fallback if provided
 	if config.Password != "" {
 		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(config.Password))
+		sshConfig.Auth = append(sshConfig.Auth, ssh.KeyboardInteractive(
+			func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = config.Password
+				}
+				return answers, nil
+			},
+		))
 	}
 
 	// If no auth methods provided, return error

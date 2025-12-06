@@ -13,6 +13,9 @@ import {
   Cloud,
   Settings,
   Storage,
+  Code,
+  PlayArrow,
+  CloudQueue,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,6 +26,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const features = [
+    // Row 1: Commands
     {
       icon: <Terminal sx={{ fontSize: 48 }} />,
       title: 'Local Commands',
@@ -32,18 +36,42 @@ const Dashboard = () => {
     },
     {
       icon: <Cloud sx={{ fontSize: 48 }} />,
-      title: 'Remote Execution',
+      title: 'Remote Commands',
       description: 'Connect and run commands on remote servers via SSH',
       action: 'Run Remote',
       onClick: () => navigate('/remote-commands'),
     },
+    // Row 2: Script Execution
+    {
+      icon: <PlayArrow sx={{ fontSize: 48 }} />,
+      title: 'Run Scripts Locally',
+      description: 'Execute stored bash scripts on the local server with env vars',
+      action: 'Run Local Script',
+      onClick: () => navigate('/local-scripts'),
+    },
+    {
+      icon: <CloudQueue sx={{ fontSize: 48 }} />,
+      title: 'Run Scripts Remotely',
+      description: 'Execute stored bash scripts on remote servers via SSH',
+      action: 'Run Remote Script',
+      onClick: () => navigate('/remote-scripts'),
+    },
+    // Row 3: Management
+    {
+      icon: <Code sx={{ fontSize: 48 }} />,
+      title: 'Bash Scripts',
+      description: 'Store and manage reusable bash scripts for execution',
+      action: 'Manage Scripts',
+      onClick: () => navigate('/scripts'),
+    },
     {
       icon: <Settings sx={{ fontSize: 48 }} />,
       title: 'Admin Panel',
-      description: 'Manage SSH keys and server configurations',
+      description: 'Manage SSH keys, servers, and environment variables',
       action: 'Open Admin',
       onClick: () => navigate('/admin'),
     },
+    // Row 4: History
     {
       icon: <Storage sx={{ fontSize: 48 }} />,
       title: 'Command History',

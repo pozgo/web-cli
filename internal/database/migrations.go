@@ -144,6 +144,61 @@ var migrations = []Migration{
 			CREATE INDEX IF NOT EXISTS idx_saved_commands_ssh_key ON saved_commands(ssh_key_id);
 		`,
 	},
+	{
+		Version:     12,
+		Description: "Create env_variables table for encrypted environment variables",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS env_variables (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL UNIQUE,
+				value_encrypted BLOB NOT NULL,
+				description TEXT,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS idx_env_variables_name ON env_variables(name);
+		`,
+	},
+	{
+		Version:     13,
+		Description: "Create bash_scripts table for storing bash scripts",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS bash_scripts (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				description TEXT,
+				content_encrypted BLOB NOT NULL,
+				filename TEXT,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS idx_bash_scripts_name ON bash_scripts(name);
+		`,
+	},
+	{
+		Version:     14,
+		Description: "Create script_presets table for saved script execution configurations",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS script_presets (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				description TEXT,
+				script_id INTEGER NOT NULL,
+				env_var_ids TEXT,
+				is_remote INTEGER NOT NULL DEFAULT 0,
+				server_id INTEGER,
+				ssh_key_id INTEGER,
+				user TEXT,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NOT NULL,
+				FOREIGN KEY (script_id) REFERENCES bash_scripts(id) ON DELETE CASCADE,
+				FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE SET NULL,
+				FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL
+			);
+			CREATE INDEX IF NOT EXISTS idx_script_presets_name ON script_presets(name);
+			CREATE INDEX IF NOT EXISTS idx_script_presets_script_id ON script_presets(script_id);
+		`,
+	},
 }
 
 // runMigrations executes all pending migrations

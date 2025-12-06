@@ -48,6 +48,7 @@ const RemoteCommands = () => {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [sshPassword, setSSHPassword] = useState('');
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [baseUsers, setBaseUsers] = useState(['root']);
 
   // Fetch data on mount
   useEffect(() => {
@@ -56,6 +57,25 @@ const RemoteCommands = () => {
     fetchSSHKeys();
     fetchLocalUsers();
   }, []);
+
+  // Update available users when server selection changes
+  useEffect(() => {
+    if (selectedServer && !location.state?.user) {
+      const server = servers.find(s => s.id === parseInt(selectedServer, 10));
+      if (server && server.username) {
+        // Add server's username to available users if not already present
+        const userSet = new Set(baseUsers);
+        userSet.add(server.username);
+        setAvailableUsers(Array.from(userSet));
+        // Auto-select the server's configured username
+        setUser(server.username);
+      } else {
+        setAvailableUsers(baseUsers);
+      }
+    } else if (!selectedServer) {
+      setAvailableUsers(baseUsers);
+    }
+  }, [selectedServer, servers, baseUsers]);
 
   // Handle navigation state (pre-filled command from history or saved commands)
   useEffect(() => {
@@ -132,10 +152,13 @@ const RemoteCommands = () => {
           }
         });
 
-        setAvailableUsers(Array.from(userSet));
+        const userArray = Array.from(userSet);
+        setBaseUsers(userArray);
+        setAvailableUsers(userArray);
       }
     } catch (err) {
       console.error('Failed to fetch local users:', err);
+      setBaseUsers(['root']);
       setAvailableUsers(['root']);
     }
   };

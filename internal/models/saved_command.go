@@ -60,3 +60,28 @@ type CommandResult struct {
 	ExecutionTime int64  `json:"execution_time_ms"` // Execution time in milliseconds
 	ExecutedAt    string `json:"executed_at"`
 }
+
+// ScriptExecution represents a request to execute a stored bash script
+type ScriptExecution struct {
+	ScriptID       int64   `json:"script_id" validate:"required"`  // ID of the script to execute
+	User           string  `json:"user"`                           // User to run as (default: root)
+	SudoPassword   string  `json:"sudo_password,omitempty"`        // Sudo password (required when user != current for local)
+	SSHPassword    string  `json:"ssh_password,omitempty"`         // SSH password (for remote, if key auth fails)
+	IsRemote       bool    `json:"is_remote"`                      // True if remote execution
+	ServerID       *int64  `json:"server_id,omitempty"`            // Server ID for remote execution
+	SSHKeyID       *int64  `json:"ssh_key_id,omitempty"`           // SSH key ID for remote execution
+	IncludeEnvVars bool    `json:"include_env_vars"`               // Deprecated: use EnvVarIDs instead
+	EnvVarIDs      []int64 `json:"env_var_ids,omitempty"`          // Specific env var IDs to include
+}
+
+// ScriptResult represents the result of a script execution
+type ScriptResult struct {
+	ScriptID      int64  `json:"script_id"`
+	ScriptName    string `json:"script_name"`
+	Output        string `json:"output"`
+	ExitCode      int    `json:"exit_code"`
+	User          string `json:"user"`
+	Server        string `json:"server"`                // "local" or server name
+	ExecutionTime int64  `json:"execution_time_ms"`     // Execution time in milliseconds
+	EnvVarsCount  int    `json:"env_vars_injected"`     // Number of env vars injected
+}
