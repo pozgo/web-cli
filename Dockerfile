@@ -1,5 +1,5 @@
 # Build stage 1: Frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:20-bookworm-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -16,10 +16,12 @@ COPY frontend/ ./
 RUN npm run build
 
 # Build stage 2: Go binary
-FROM golang:1.24-alpine AS go-builder
+FROM golang:1.24-bookworm AS go-builder
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -35,8 +37,12 @@ COPY assets/ ./assets/
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./assets/frontend/
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+# Build arguments for multi-platform support
+ARG TARGETOS=linux
+ARG TARGETARCH
+
+# Build the binary for target platform
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags="-s -w -X main.Version=docker" \
     -o /app/web-cli \
     ./cmd/web-cli
