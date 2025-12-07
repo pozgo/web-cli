@@ -317,15 +317,18 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate input
-	if exec.Command == "" {
-		http.Error(w, "Command is required", http.StatusBadRequest)
+	// Validate command
+	if err := validation.ValidateCommand(exec.Command); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid command: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Default user to root if not specified
+	// Validate and default user
 	if exec.User == "" {
 		exec.User = "root"
+	} else if err := validation.ValidateUsername(exec.User); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid user: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	var result *executor.ExecuteResult
@@ -368,7 +371,7 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute remotely
-		remoteExec := executor.NewRemoteExecutor()
+		remoteExec := executor.NewRemoteExecutorWithHostKeys("", true)
 		sshConfig := &executor.SSHConfig{
 			Host:       server.IPAddress,
 			Port:       server.Port,
@@ -1086,9 +1089,12 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default user to root if not specified
+	// Validate and default user
 	if exec.User == "" {
 		exec.User = "root"
+	} else if err := validation.ValidateUsername(exec.User); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid user: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	// Fetch the script
@@ -1184,7 +1190,7 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute remotely
-		remoteExec := executor.NewRemoteExecutor()
+		remoteExec := executor.NewRemoteExecutorWithHostKeys("", true)
 		sshConfig := &executor.SSHConfig{
 			Host:       server.IPAddress,
 			Port:       server.Port,

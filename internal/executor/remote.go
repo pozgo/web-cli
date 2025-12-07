@@ -264,9 +264,16 @@ func (e *RemoteExecutor) ExecuteWithStreaming(ctx context.Context, command strin
 		startTime := time.Now()
 
 		// Prepare SSH client configuration (same as Execute)
+		var hostKeyCallback ssh.HostKeyCallback
+		if e.hostKeyVerifier != nil {
+			hostKeyCallback = e.hostKeyVerifier.GetHostKeyCallback()
+		} else {
+			hostKeyCallback = ssh.InsecureIgnoreHostKey()
+		}
+
 		sshConfig := &ssh.ClientConfig{
 			User:            config.Username,
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			HostKeyCallback: hostKeyCallback,
 			Timeout:         10 * time.Second,
 			Auth:            []ssh.AuthMethod{},
 		}

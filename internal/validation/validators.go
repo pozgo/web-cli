@@ -231,3 +231,23 @@ func ValidateBashScriptFilename(filename string) error {
 
 	return nil
 }
+
+// ValidateCommand validates a command string for execution
+// This performs basic sanitization to prevent common attacks
+func ValidateCommand(command string) error {
+	if command == "" {
+		return fmt.Errorf("command cannot be empty")
+	}
+
+	// Limit command size to prevent abuse (64KB max)
+	if len(command) > 64*1024 {
+		return fmt.Errorf("command too long (max 64KB)")
+	}
+
+	// Prevent null bytes which could cause issues with C-based commands
+	if strings.Contains(command, "\x00") {
+		return fmt.Errorf("command contains invalid null character")
+	}
+
+	return nil
+}

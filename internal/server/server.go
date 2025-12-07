@@ -242,7 +242,18 @@ func (s *Server) Start() error {
 		MaxAge:           300,
 	})
 
-	handler := c.Handler(s.router)
+	// Apply security headers middleware
+	securedHandler := middleware.SecureHeaders()(c.Handler(s.router))
+
+	// Load auth config for HTTPS enforcement check
+	authConfig := middleware.LoadAuthConfig()
+
+	// Apply HTTPS enforcement middleware if configured
+	securityConfig := &middleware.SecurityConfig{
+		RequireHTTPS: s.config.RequireHTTPS,
+		AuthEnabled:  authConfig.Enabled,
+	}
+	handler := middleware.RequireHTTPS(securityConfig)(securedHandler)
 
 	addr := s.config.GetAddress()
 	log.Printf("Starting server on %s", addr)
@@ -257,6 +268,22 @@ func (s *Server) Start() error {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start with TLS if configured
+	if s.config.TLSEnabled() {
+		log.Printf("TLS enabled - using certificate: %s", s.config.TLSCertPath)
+		if s.config.RequireHTTPS && authConfig.Enabled {
+			log.Println("HTTPS enforcement is ENABLED (non-HTTPS requests will be rejected)")
+		}
+		return server.ListenAndServeTLS(s.config.TLSCertPath, s.config.TLSKeyPath)
+	}
+
+	// Warn if auth is enabled without HTTPS
+	if authConfig.Enabled && !s.config.TLSEnabled() {
+		log.Println("WARNING: Authentication is enabled but TLS is not configured!")
+		log.Println("WARNING: Credentials will be transmitted in plain text!")
+		log.Println("WARNING: Set TLS_CERT_PATH and TLS_KEY_PATH environment variables for production use.")
 	}
 
 	return server.ListenAndServe()
