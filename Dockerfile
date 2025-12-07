@@ -41,19 +41,38 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o /app/web-cli \
     ./cmd/web-cli
 
-# Final stage: Minimal runtime image
-FROM alpine:3.20
+# Final stage: Debian-based runtime for proper bash support
+FROM debian:bookworm-slim
 
-# Install ca-certificates for HTTPS and tzdata for timezones
-RUN apk add --no-cache ca-certificates tzdata
+# Install required packages:
+# - ca-certificates: for HTTPS connections
+# - tzdata: for timezone support
+# - bash: full bash shell for script execution
+# - coreutils: standard Unix utilities
+# - curl: for health checks and HTTP operations
+# - openssh-client: for SSH connections to remote servers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tzdata \
+    bash \
+    coreutils \
+    curl \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create non-root user for security
-RUN addgroup -g 1000 webcli && \
-    adduser -u 1000 -G webcli -s /bin/sh -D webcli
+RUN groupadd -g 1000 webcli && \
+    useradd -u 1000 -g webcli -s /bin/bash -m webcli
 
-# Create data directory
+# Create data and config directories
 RUN mkdir -p /data /config && \
     chown -R webcli:webcli /data /config
+
+# Create .ssh directory for SSH key operations
+RUN mkdir -p /home/webcli/.ssh && \
+    chown webcli:webcli /home/webcli/.ssh && \
+    chmod 700 /home/webcli/.ssh
 
 WORKDIR /app
 
@@ -69,15 +88,16 @@ USER webcli
 # Expose default port
 EXPOSE 7777
 
-# Health check
+# Health check using curl
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:7777/api/health || exit 1
+    CMD curl -sf http://localhost:7777/api/health || exit 1
 
 # Environment variables with defaults
 ENV WEBCLI_PORT=7777 \
     WEBCLI_HOST=0.0.0.0 \
     WEBCLI_DATABASE_PATH=/data/web-cli.db \
-    WEBCLI_ENCRYPTION_KEY_PATH=/data/.encryption_key
+    WEBCLI_ENCRYPTION_KEY_PATH=/data/.encryption_key \
+    SHELL=/bin/bash
 
 # Volume for persistent data
 VOLUME ["/data", "/config"]
