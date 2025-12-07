@@ -158,7 +158,8 @@ jobs:
             --exclude="*.md" \
             --exclude="*.js" \
             --exclude="*.jsx" \
-            --exclude="*.json" | \
+            --exclude="*.json" \
+            --exclude="*_test.go" | \
             grep -v "^[[:space:]]*\/\/" | \
             grep -v 'json:' | \
             grep -v '`json:' | \
