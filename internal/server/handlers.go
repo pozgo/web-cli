@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os/user"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pozgo/web-cli/internal/executor"
@@ -316,15 +317,18 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate input
-	if exec.Command == "" {
-		http.Error(w, "Command is required", http.StatusBadRequest)
+	// Validate command
+	if err := validation.ValidateCommand(exec.Command); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid command: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Default user to root if not specified
+	// Validate and default user
 	if exec.User == "" {
 		exec.User = "root"
+	} else if err := validation.ValidateUsername(exec.User); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid user: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	var result *executor.ExecuteResult
@@ -367,7 +371,7 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Execute remotely
-		remoteExec := executor.NewRemoteExecutor()
+		remoteExec := executor.NewRemoteExecutorWithHostKeys("", true)
 		sshConfig := &executor.SSHConfig{
 			Host:       server.IPAddress,
 			Port:       server.Port,
@@ -416,11 +420,16 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Return result
+	// Return result - include error in output if present
+	output := result.Output
+	if result.Error != nil && output == "" {
+		output = fmt.Sprintf("Error: %s", result.Error.Error())
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.CommandResult{
 		Command:       exec.Command,
-		Output:        result.Output,
+		Output:        output,
 		ExitCode:      result.ExitCode,
 		User:          exec.User,
 		ExecutionTime: result.ExecutionTime,
@@ -750,4 +759,728 @@ func (s *Server) handleGetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		"name":     currentUser.Name,
 		"home_dir": currentUser.HomeDir,
 	})
+}
+
+// handleListEnvVariables returns all environment variables (with masked values by default)
+func (s *Server) handleListEnvVariables(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	envVars, err := repo.GetAll()
+	if err != nil {
+		log.Printf("Error fetching environment variables: %v", err)
+		http.Error(w, "Failed to fetch environment variables", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if full values are requested (for internal use)
+	showValues := r.URL.Query().Get("show_values") == "true"
+
+	// Convert to response format with masked values
+	responses := make([]*models.EnvVariableResponse, len(envVars))
+	for i, envVar := range envVars {
+		responses[i] = envVar.ToResponse(showValues)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responses)
+}
+
+// handleCreateEnvVariable creates a new environment variable
+func (s *Server) handleCreateEnvVariable(w http.ResponseWriter, r *http.Request) {
+	var envVarCreate models.EnvVariableCreate
+
+	if err := json.NewDecoder(r.Body).Decode(&envVarCreate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if err := validation.ValidateEnvVarName(envVarCreate.Name); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := validation.ValidateEnvVarValue(envVarCreate.Value); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid value: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	envVar, err := repo.Create(&envVarCreate)
+	if err != nil {
+		log.Printf("Error creating environment variable: %v", err)
+		http.Error(w, "Failed to create environment variable", http.StatusInternalServerError)
+		return
+	}
+
+	// Return with masked value
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(envVar.ToResponse(false))
+}
+
+// handleGetEnvVariable returns a single environment variable by ID
+func (s *Server) handleGetEnvVariable(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid environment variable ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	envVar, err := repo.GetByID(id)
+	if err != nil {
+		log.Printf("Error fetching environment variable: %v", err)
+		http.Error(w, "Environment variable not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if full value is requested
+	showValue := r.URL.Query().Get("show_value") == "true"
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(envVar.ToResponse(showValue))
+}
+
+// handleUpdateEnvVariable updates an existing environment variable by ID
+func (s *Server) handleUpdateEnvVariable(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid environment variable ID", http.StatusBadRequest)
+		return
+	}
+
+	var envVarUpdate models.EnvVariableUpdate
+
+	if err := json.NewDecoder(r.Body).Decode(&envVarUpdate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input if provided
+	if envVarUpdate.Name != "" {
+		if err := validation.ValidateEnvVarName(envVarUpdate.Name); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if envVarUpdate.Value != "" {
+		if err := validation.ValidateEnvVarValue(envVarUpdate.Value); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid value: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	envVar, err := repo.Update(id, &envVarUpdate)
+	if err != nil {
+		log.Printf("Error updating environment variable: %v", err)
+		http.Error(w, "Failed to update environment variable", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(envVar.ToResponse(false))
+}
+
+// handleDeleteEnvVariable deletes an environment variable by ID
+func (s *Server) handleDeleteEnvVariable(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid environment variable ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	if err := repo.Delete(id); err != nil {
+		log.Printf("Error deleting environment variable: %v", err)
+		http.Error(w, "Failed to delete environment variable", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleListBashScripts returns all bash scripts (without content by default)
+func (s *Server) handleListBashScripts(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewBashScriptRepository(s.db)
+
+	scripts, err := repo.GetAll()
+	if err != nil {
+		log.Printf("Error fetching bash scripts: %v", err)
+		http.Error(w, "Failed to fetch bash scripts", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to response format (without content for listing)
+	responses := models.BashScriptsToList(scripts)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responses)
+}
+
+// handleCreateBashScript creates a new bash script
+func (s *Server) handleCreateBashScript(w http.ResponseWriter, r *http.Request) {
+	var scriptCreate models.BashScriptCreate
+
+	if err := json.NewDecoder(r.Body).Decode(&scriptCreate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if err := validation.ValidateBashScriptName(scriptCreate.Name); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := validation.ValidateBashScriptContent(scriptCreate.Content); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid content: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := validation.ValidateBashScriptFilename(scriptCreate.Filename); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid filename: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewBashScriptRepository(s.db)
+
+	script, err := repo.Create(&scriptCreate)
+	if err != nil {
+		log.Printf("Error creating bash script: %v", err)
+		http.Error(w, "Failed to create bash script", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(script.ToResponse(true))
+}
+
+// handleGetBashScript returns a single bash script by ID
+func (s *Server) handleGetBashScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid bash script ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewBashScriptRepository(s.db)
+
+	script, err := repo.GetByID(id)
+	if err != nil {
+		log.Printf("Error fetching bash script: %v", err)
+		http.Error(w, "Bash script not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if content is requested (default true for single item)
+	includeContent := r.URL.Query().Get("include_content") != "false"
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(script.ToResponse(includeContent))
+}
+
+// handleUpdateBashScript updates an existing bash script by ID
+func (s *Server) handleUpdateBashScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid bash script ID", http.StatusBadRequest)
+		return
+	}
+
+	var scriptUpdate models.BashScriptUpdate
+
+	if err := json.NewDecoder(r.Body).Decode(&scriptUpdate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input if provided
+	if scriptUpdate.Name != "" {
+		if err := validation.ValidateBashScriptName(scriptUpdate.Name); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if scriptUpdate.Content != "" {
+		if err := validation.ValidateBashScriptContent(scriptUpdate.Content); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid content: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if scriptUpdate.Filename != "" {
+		if err := validation.ValidateBashScriptFilename(scriptUpdate.Filename); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid filename: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	repo := repository.NewBashScriptRepository(s.db)
+
+	script, err := repo.Update(id, &scriptUpdate)
+	if err != nil {
+		log.Printf("Error updating bash script: %v", err)
+		http.Error(w, "Failed to update bash script", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(script.ToResponse(true))
+}
+
+// handleDeleteBashScript deletes a bash script by ID
+func (s *Server) handleDeleteBashScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid bash script ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewBashScriptRepository(s.db)
+
+	if err := repo.Delete(id); err != nil {
+		log.Printf("Error deleting bash script: %v", err)
+		http.Error(w, "Failed to delete bash script", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleExecuteScript executes a stored bash script (local or remote)
+func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
+	var exec models.ScriptExecution
+
+	if err := json.NewDecoder(r.Body).Decode(&exec); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if exec.ScriptID == 0 {
+		http.Error(w, "Script ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate and default user
+	if exec.User == "" {
+		exec.User = "root"
+	} else if err := validation.ValidateUsername(exec.User); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid user: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Fetch the script
+	scriptRepo := repository.NewBashScriptRepository(s.db)
+	script, err := scriptRepo.GetByID(exec.ScriptID)
+	if err != nil {
+		log.Printf("Error fetching script: %v", err)
+		http.Error(w, "Script not found", http.StatusNotFound)
+		return
+	}
+
+	// Build the script content with optional env vars
+	var scriptContent strings.Builder
+	envVarsCount := 0
+
+	// Determine which env vars to include
+	// Priority: EnvVarIDs (specific selection) > IncludeEnvVars (all) > none
+	envRepo := repository.NewEnvVariableRepository(s.db)
+
+	if len(exec.EnvVarIDs) > 0 {
+		// Fetch specific environment variables by ID
+		for _, envVarID := range exec.EnvVarIDs {
+			envVar, err := envRepo.GetByID(envVarID)
+			if err != nil {
+				log.Printf("Warning: env variable ID %d not found: %v", envVarID, err)
+				continue
+			}
+			// Escape single quotes in the value for safe shell export
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+	} else if exec.IncludeEnvVars {
+		// Backwards compatibility: fetch all environment variables
+		envVars, err := envRepo.GetAll()
+		if err != nil {
+			log.Printf("Error fetching environment variables: %v", err)
+			http.Error(w, "Failed to fetch environment variables", http.StatusInternalServerError)
+			return
+		}
+
+		// Prepend env vars as export statements
+		for _, envVar := range envVars {
+			// Escape single quotes in the value for safe shell export
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+	}
+
+	// Append the actual script content
+	scriptContent.WriteString(script.Content)
+
+	finalScript := scriptContent.String()
+
+	var result *executor.ExecuteResult
+	serverName := "local"
+
+	if exec.IsRemote {
+		// Remote execution via SSH
+		if exec.ServerID == nil {
+			http.Error(w, "Server ID is required for remote execution", http.StatusBadRequest)
+			return
+		}
+
+		// Get server details
+		serverRepo := repository.NewServerRepository(s.db)
+		server, err := serverRepo.GetByID(*exec.ServerID)
+		if err != nil {
+			log.Printf("Error fetching server: %v", err)
+			http.Error(w, "Server not found", http.StatusNotFound)
+			return
+		}
+
+		// Get SSH key if provided
+		var privateKey string
+		if exec.SSHKeyID != nil {
+			keyRepo := repository.NewSSHKeyRepository(s.db)
+			key, err := keyRepo.GetByID(*exec.SSHKeyID)
+			if err != nil {
+				log.Printf("Error fetching SSH key: %v", err)
+				http.Error(w, "SSH key not found", http.StatusNotFound)
+				return
+			}
+			privateKey = key.PrivateKey
+		}
+
+		// Set server name for response
+		if server.Name != "" {
+			serverName = server.Name
+		} else if server.IPAddress != "" {
+			serverName = server.IPAddress
+		}
+
+		// Execute remotely
+		remoteExec := executor.NewRemoteExecutorWithHostKeys("", true)
+		sshConfig := &executor.SSHConfig{
+			Host:       server.IPAddress,
+			Port:       server.Port,
+			Username:   exec.User,
+			PrivateKey: privateKey,
+			Password:   exec.SSHPassword,
+		}
+		result = remoteExec.Execute(context.Background(), finalScript, sshConfig)
+	} else {
+		// Local execution
+		localExec := executor.NewLocalExecutor()
+		result = localExec.Execute(context.Background(), finalScript, exec.User, exec.SudoPassword)
+	}
+
+	// Store in command history
+	exitCode := result.ExitCode
+	historyRepo := repository.NewCommandHistoryRepository(s.db)
+	_, err = historyRepo.Create(&models.CommandHistoryCreate{
+		Command:         fmt.Sprintf("[Script: %s] %s", script.Name, script.Content[:min(100, len(script.Content))]),
+		Output:          result.Output,
+		ExitCode:        &exitCode,
+		Server:          serverName,
+		User:            exec.User,
+		ExecutionTimeMs: result.ExecutionTime,
+	})
+	if err != nil {
+		log.Printf("Warning: failed to save command history: %v", err)
+	}
+
+	// Return result - include error in output if present
+	scriptOutput := result.Output
+	if result.Error != nil && scriptOutput == "" {
+		scriptOutput = fmt.Sprintf("Error: %s", result.Error.Error())
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.ScriptResult{
+		ScriptID:      script.ID,
+		ScriptName:    script.Name,
+		Output:        scriptOutput,
+		ExitCode:      result.ExitCode,
+		User:          exec.User,
+		Server:        serverName,
+		ExecutionTime: result.ExecutionTime,
+		EnvVarsCount:  envVarsCount,
+	})
+}
+
+// ========== Script Preset Handlers ==========
+
+// handleListScriptPresets returns all script presets
+func (s *Server) handleListScriptPresets(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	presets, err := repo.GetAll()
+	if err != nil {
+		log.Printf("Error fetching script presets: %v", err)
+		http.Error(w, "Failed to fetch script presets", http.StatusInternalServerError)
+		return
+	}
+
+	responses := models.ScriptPresetsToList(presets)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responses)
+}
+
+// handleCreateScriptPreset creates a new script preset
+func (s *Server) handleCreateScriptPreset(w http.ResponseWriter, r *http.Request) {
+	var presetCreate models.ScriptPresetCreate
+
+	if err := json.NewDecoder(r.Body).Decode(&presetCreate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if presetCreate.Name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	if presetCreate.ScriptID == 0 {
+		http.Error(w, "Script ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the script exists
+	scriptRepo := repository.NewBashScriptRepository(s.db)
+	_, err := scriptRepo.GetByID(presetCreate.ScriptID)
+	if err != nil {
+		http.Error(w, "Script not found", http.StatusBadRequest)
+		return
+	}
+
+	// Verify env var IDs exist if provided
+	if len(presetCreate.EnvVarIDs) > 0 {
+		envRepo := repository.NewEnvVariableRepository(s.db)
+		for _, envVarID := range presetCreate.EnvVarIDs {
+			_, err := envRepo.GetByID(envVarID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Environment variable with ID %d not found", envVarID), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Verify server exists if provided
+	if presetCreate.ServerID != nil {
+		serverRepo := repository.NewServerRepository(s.db)
+		_, err := serverRepo.GetByID(*presetCreate.ServerID)
+		if err != nil {
+			http.Error(w, "Server not found", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Verify SSH key exists if provided
+	if presetCreate.SSHKeyID != nil {
+		keyRepo := repository.NewSSHKeyRepository(s.db)
+		_, err := keyRepo.GetByID(*presetCreate.SSHKeyID)
+		if err != nil {
+			http.Error(w, "SSH key not found", http.StatusBadRequest)
+			return
+		}
+	}
+
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	preset, err := repo.Create(&presetCreate)
+	if err != nil {
+		log.Printf("Error creating script preset: %v", err)
+		http.Error(w, "Failed to create script preset", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(preset.ToResponse())
+}
+
+// handleGetScriptPreset returns a single script preset by ID
+func (s *Server) handleGetScriptPreset(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid script preset ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	preset, err := repo.GetByID(id)
+	if err != nil {
+		log.Printf("Error fetching script preset: %v", err)
+		http.Error(w, "Script preset not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preset.ToResponse())
+}
+
+// handleUpdateScriptPreset updates an existing script preset by ID
+func (s *Server) handleUpdateScriptPreset(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid script preset ID", http.StatusBadRequest)
+		return
+	}
+
+	var presetUpdate models.ScriptPresetUpdate
+
+	if err := json.NewDecoder(r.Body).Decode(&presetUpdate); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Verify script exists if being updated
+	if presetUpdate.ScriptID != nil {
+		scriptRepo := repository.NewBashScriptRepository(s.db)
+		_, err := scriptRepo.GetByID(*presetUpdate.ScriptID)
+		if err != nil {
+			http.Error(w, "Script not found", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Verify env var IDs exist if being updated
+	if len(presetUpdate.EnvVarIDs) > 0 {
+		envRepo := repository.NewEnvVariableRepository(s.db)
+		for _, envVarID := range presetUpdate.EnvVarIDs {
+			_, err := envRepo.GetByID(envVarID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Environment variable with ID %d not found", envVarID), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Verify server exists if being updated
+	if presetUpdate.ServerID != nil {
+		serverRepo := repository.NewServerRepository(s.db)
+		_, err := serverRepo.GetByID(*presetUpdate.ServerID)
+		if err != nil {
+			http.Error(w, "Server not found", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Verify SSH key exists if being updated
+	if presetUpdate.SSHKeyID != nil {
+		keyRepo := repository.NewSSHKeyRepository(s.db)
+		_, err := keyRepo.GetByID(*presetUpdate.SSHKeyID)
+		if err != nil {
+			http.Error(w, "SSH key not found", http.StatusBadRequest)
+			return
+		}
+	}
+
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	preset, err := repo.Update(id, &presetUpdate)
+	if err != nil {
+		log.Printf("Error updating script preset: %v", err)
+		http.Error(w, "Failed to update script preset", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preset.ToResponse())
+}
+
+// handleDeleteScriptPreset deletes a script preset by ID
+func (s *Server) handleDeleteScriptPreset(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid script preset ID", http.StatusBadRequest)
+		return
+	}
+
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	if err := repo.Delete(id); err != nil {
+		log.Printf("Error deleting script preset: %v", err)
+		http.Error(w, "Failed to delete script preset", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetScriptPresetsByScript returns all presets for a specific script
+func (s *Server) handleGetScriptPresetsByScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	scriptID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid script ID", http.StatusBadRequest)
+		return
+	}
+
+	// Verify script exists
+	scriptRepo := repository.NewBashScriptRepository(s.db)
+	_, err = scriptRepo.GetByID(scriptID)
+	if err != nil {
+		http.Error(w, "Script not found", http.StatusNotFound)
+		return
+	}
+
+	repo := repository.NewScriptPresetRepository(s.db)
+
+	presets, err := repo.GetByScriptID(scriptID)
+	if err != nil {
+		log.Printf("Error fetching script presets: %v", err)
+		http.Error(w, "Failed to fetch script presets", http.StatusInternalServerError)
+		return
+	}
+
+	responses := models.ScriptPresetsToList(presets)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responses)
 }

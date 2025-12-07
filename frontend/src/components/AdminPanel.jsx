@@ -23,6 +23,7 @@ import AddKeyDialog from './AddKeyDialog';
 import EditKeyDialog from './EditKeyDialog';
 import ServerList from './ServerList';
 import LocalUserList from './LocalUserList';
+import EnvVariableList from './EnvVariableList';
 
 /**
  * AdminPanel component - displays and manages SSH keys and servers
@@ -128,6 +129,7 @@ const AdminPanel = () => {
             <Tab label="SSH Keys" />
             <Tab label="Servers" />
             <Tab label="Local Users" />
+            <Tab label="Environment Variables" />
           </Tabs>
         </Paper>
 
@@ -223,6 +225,8 @@ const AdminPanel = () => {
         {tabValue === 1 && <ServerList />}
 
         {tabValue === 2 && <LocalUserList />}
+
+        {tabValue === 3 && <EnvVariableList />}
       </Box>
 
       <AddKeyDialog

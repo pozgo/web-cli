@@ -86,6 +86,15 @@ func (v *HostKeyVerifier) loadKnownHosts() error {
 		return nil
 	}
 
+	// Verify secure permissions on existing file and directory
+	dir := filepath.Dir(v.knownHostsPath)
+	if err := checkDirPermissions(dir); err != nil {
+		return fmt.Errorf("SSH directory security check failed: %w", err)
+	}
+	if err := checkFilePermissions(v.knownHostsPath); err != nil {
+		return fmt.Errorf("known_hosts security check failed: %w", err)
+	}
+
 	file, err := os.Open(v.knownHostsPath)
 	if err != nil {
 		return err
@@ -159,4 +168,41 @@ func parsePublicKeyFromKnownHosts(keyType, keyData string) (ssh.PublicKey, error
 // keysEqual compares two SSH public keys
 func keysEqual(a, b ssh.PublicKey) bool {
 	return string(a.Marshal()) == string(b.Marshal())
+}
+
+// checkFilePermissions verifies that the known_hosts file has secure permissions
+// Returns an error if permissions are too permissive (world/group readable/writable)
+func checkFilePermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	mode := info.Mode().Perm()
+	// Check if group or others have any permissions (should be 0600 or stricter)
+	if mode&0077 != 0 {
+		return fmt.Errorf("insecure permissions on %s: %o (should be 0600 or stricter)", path, mode)
+	}
+
+	return nil
+}
+
+// checkDirPermissions verifies that the .ssh directory has secure permissions
+func checkDirPermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
+	}
+
+	mode := info.Mode().Perm()
+	// Check if group or others have write permissions (should be 0700 or stricter)
+	if mode&0022 != 0 {
+		return fmt.Errorf("insecure permissions on %s: %o (should be 0700 or stricter)", path, mode)
+	}
+
+	return nil
 }

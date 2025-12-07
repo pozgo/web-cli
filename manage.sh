@@ -6,6 +6,8 @@
 #   ./manage.sh stop    - Stop the server
 #   ./manage.sh restart - Restart the server
 #   ./manage.sh status  - Check if server is running
+#   ./manage.sh fresh   - Start fresh (delete all data and restart)
+#   ./manage.sh reset   - Delete all data (keeps server stopped)
 
 set -euo pipefail
 
@@ -179,8 +181,40 @@ status() {
     fi
 }
 
+# Function to reset/delete all data
+reset_data() {
+    echo -e "${YELLOW}Deleting all data...${NC}"
+    
+    # Stop server if running
+    if is_running; then
+        echo -e "${YELLOW}Stopping server first...${NC}"
+        stop
+    fi
+    
+    # Delete data directory
+    if [ -d "data" ]; then
+        rm -rf data/
+        echo -e "${GREEN}Data directory deleted${NC}"
+    else
+        echo -e "${YELLOW}Data directory does not exist${NC}"
+    fi
+    
+    # Delete credentials file
+    rm -f .web-cli-credentials
+    
+    echo -e "${GREEN}All data has been reset${NC}"
+}
+
+# Function to start fresh (reset and start)
+fresh() {
+    echo -e "${YELLOW}Starting fresh...${NC}"
+    reset_data
+    echo ""
+    start
+}
+
 # Main script
-case "$1" in
+case "${1:-}" in
     start)
         start
         ;;
@@ -193,8 +227,22 @@ case "$1" in
     status)
         status
         ;;
+    fresh)
+        fresh
+        ;;
+    reset)
+        reset_data
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status}"
+        echo "Usage: $0 {start|stop|restart|status|fresh|reset}"
+        echo ""
+        echo "Commands:"
+        echo "  start   - Start the server"
+        echo "  stop    - Stop the server"
+        echo "  restart - Restart the server"
+        echo "  status  - Check if server is running"
+        echo "  fresh   - Delete all data and start fresh"
+        echo "  reset   - Delete all data (keeps server stopped)"
         exit 1
         ;;
 esac

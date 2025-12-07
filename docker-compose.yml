@@ -1,0 +1,118 @@
+# Docker Compose configuration for Web CLI
+#
+# Quick Start:
+#   docker compose up -d
+#
+# With custom configuration:
+#   cp .env.example .env
+#   # Edit .env with your settings
+#   docker compose up -d
+#
+# Build locally:
+#   docker compose build
+#   docker compose up -d
+
+services:
+  web-cli:
+    image: polinux/web-cli:latest
+    # Uncomment to build locally instead of using pre-built image
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    container_name: web-cli
+    restart: unless-stopped
+
+    ports:
+      - "${WEBCLI_PORT:-7777}:7777"
+
+    volumes:
+      # Persistent data (database, encryption key)
+      - web-cli-data:/data
+      # Optional: Mount config file
+      # - ./config.yaml:/config/config.yaml:ro
+      # Optional: Mount TLS certificates
+      # - ./certs:/certs:ro
+      # Optional: Mount SSH known_hosts for host key verification
+      # - ~/.ssh/known_hosts:/home/webcli/.ssh/known_hosts:ro
+
+    environment:
+      # ===========================================
+      # Server Configuration
+      # ===========================================
+
+      # Port to listen on (default: 7777)
+      WEBCLI_PORT: ${WEBCLI_PORT:-7777}
+
+      # Host to bind to (default: 0.0.0.0)
+      WEBCLI_HOST: ${WEBCLI_HOST:-0.0.0.0}
+
+      # ===========================================
+      # Database & Encryption
+      # ===========================================
+
+      # Path to SQLite database file
+      WEBCLI_DATABASE_PATH: ${WEBCLI_DATABASE_PATH:-/data/web-cli.db}
+
+      # Path to encryption key file (auto-generated if not exists)
+      WEBCLI_ENCRYPTION_KEY_PATH: ${WEBCLI_ENCRYPTION_KEY_PATH:-/data/.encryption_key}
+
+      # Optional: Provide encryption key directly (base64 encoded, 32 bytes)
+      # Generate with: openssl rand -base64 32
+      # ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+
+      # ===========================================
+      # Authentication (REQUIRED for production)
+      # ===========================================
+
+      # Enable authentication (default: false)
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+
+      # HTTP Basic Authentication credentials
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+
+      # API Token for Bearer authentication (alternative to Basic Auth)
+      # AUTH_API_TOKEN: ${AUTH_API_TOKEN:-}
+
+      # ===========================================
+      # TLS/HTTPS Configuration
+      # ===========================================
+
+      # Path to TLS certificate file (enables HTTPS)
+      # WEBCLI_TLS_CERT_PATH: ${WEBCLI_TLS_CERT_PATH:-/certs/cert.pem}
+
+      # Path to TLS private key file
+      # WEBCLI_TLS_KEY_PATH: ${WEBCLI_TLS_KEY_PATH:-/certs/key.pem}
+
+      # Require HTTPS when authentication is enabled
+      # WEBCLI_REQUIRE_HTTPS: ${WEBCLI_REQUIRE_HTTPS:-false}
+
+      # ===========================================
+      # CORS Configuration
+      # ===========================================
+
+      # Allowed origins for CORS (comma-separated)
+      # Default: localhost only
+      # CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7777/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (data is in /data volume)
+    read_only: true
+
+    # Temporary filesystem for runtime needs
+    tmpfs:
+      - /tmp:mode=1777,size=64M
+
+volumes:
+  web-cli-data:
+    driver: local

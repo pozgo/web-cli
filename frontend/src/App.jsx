@@ -9,6 +9,9 @@ import LocalCommands from './components/LocalCommands';
 import RemoteCommands from './components/RemoteCommands';
 import SavedCommands from './components/SavedCommands';
 import CommandHistory from './components/CommandHistory';
+import ScriptsPage from './components/ScriptsPage';
+import LocalScripts from './components/LocalScripts';
+import RemoteScripts from './components/RemoteScripts';
 
 /**
  * Main App component - handles theme management and renders the application with routing
@@ -45,6 +48,9 @@ function App() {
           <Route path="/remote-commands" element={<RemoteCommands />} />
           <Route path="/saved-commands" element={<SavedCommands />} />
           <Route path="/history" element={<CommandHistory />} />
+          <Route path="/scripts" element={<ScriptsPage />} />
+          <Route path="/local-scripts" element={<LocalScripts />} />
+          <Route path="/remote-scripts" element={<RemoteScripts />} />
         </Routes>
       </ThemeProvider>
     </BrowserRouter>

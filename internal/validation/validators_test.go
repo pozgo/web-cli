@@ -190,3 +190,169 @@ func TestValidateCommandName(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEnvVarName(t *testing.T) {
+	tests := []struct {
+		name    string
+		varName string
+		wantErr bool
+	}{
+		{"valid simple", "MY_VAR", false},
+		{"valid with numbers", "VAR123", false},
+		{"valid starts with underscore", "_PRIVATE_VAR", false},
+		{"valid lowercase", "my_var", false},
+		{"valid mixed case", "MyVar", false},
+		{"valid single letter", "A", false},
+		{"valid single underscore", "_", false},
+		{"empty string", "", true},
+		{"starts with number", "1VAR", true},
+		{"contains dash", "MY-VAR", true},
+		{"contains space", "MY VAR", true},
+		{"contains dot", "MY.VAR", true},
+		{"contains special chars", "MY$VAR", true},
+		{"too long", strings.Repeat("A", 256), true},
+		{"common env var PATH", "PATH", false},
+		{"common env var HOME", "HOME", false},
+		{"common env var API_KEY", "API_KEY", false},
+		{"common env var DATABASE_URL", "DATABASE_URL", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateEnvVarName(tt.varName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateEnvVarName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateEnvVarValue(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"valid simple", "my-value", false},
+		{"valid with spaces", "my value with spaces", false},
+		{"valid with special chars", "pass!@#$%^&*()", false},
+		{"valid with newlines", "line1\nline2", false},
+		{"valid JSON", `{"key": "value"}`, false},
+		{"valid URL", "https://example.com/path?query=1", false},
+		{"valid long string", strings.Repeat("a", 1000), false},
+		{"empty string", "", true},
+		{"contains null byte", "value\x00here", true},
+		{"valid unicode", "密码123", false},
+		{"valid base64", "SGVsbG8gV29ybGQh", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateEnvVarValue(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateEnvVarValue() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateBashScriptName(t *testing.T) {
+	tests := []struct {
+		name       string
+		scriptName string
+		wantErr    bool
+	}{
+		{"valid simple", "My Script", false},
+		{"valid with dash", "backup-script", false},
+		{"valid with underscore", "db_backup", false},
+		{"valid with numbers", "script123", false},
+		{"valid unicode", "备份脚本", false},
+		{"valid long name", strings.Repeat("a", 255), false},
+		{"empty string", "", true},
+		{"too long", strings.Repeat("a", 256), true},
+		{"contains null byte", "script\x00name", true},
+		{"contains newline", "script\nname", true},
+		{"contains carriage return", "script\rname", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBashScriptName(tt.scriptName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBashScriptName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateBashScriptContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		wantErr bool
+	}{
+		{"valid simple", "#!/bin/bash\necho hello", false},
+		{"valid multiline", "#!/bin/bash\necho hello\necho world", false},
+		{"valid with comments", "#!/bin/bash\n# This is a comment\necho hello", false},
+		{"valid with variables", "#!/bin/bash\nNAME=\"World\"\necho \"Hello $NAME\"", false},
+		{"valid long script", strings.Repeat("echo hello\n", 1000), false},
+		{"empty string", "", true},
+		{"contains null byte", "echo hello\x00world", true},
+		{"valid without shebang", "echo hello", false},
+		{"valid complex script", `#!/bin/bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 <arg>"
+    exit 1
+fi
+
+for i in "$@"; do
+    echo "Processing: $i"
+done
+`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBashScriptContent(tt.content)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBashScriptContent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateBashScriptFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		wantErr  bool
+	}{
+		{"valid simple", "script.sh", false},
+		{"valid with dash", "my-script.sh", false},
+		{"valid with underscore", "my_script.sh", false},
+		{"valid bash extension", "script.bash", false},
+		{"valid no extension", "script", false},
+		{"empty string", "", false}, // Filename is optional
+		{"too long", strings.Repeat("a", 256), true},
+		{"path traversal", "../script.sh", true},
+		{"absolute path", "/etc/script.sh", true},
+		{"windows path", "C:\\script.sh", true},
+		{"contains asterisk", "script*.sh", true},
+		{"contains question mark", "script?.sh", true},
+		{"contains quotes", "script\".sh", true},
+		{"contains pipe", "script|.sh", true},
+		{"contains null byte", "script\x00.sh", true},
+		{"contains newline", "script\n.sh", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBashScriptFilename(tt.filename)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBashScriptFilename() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

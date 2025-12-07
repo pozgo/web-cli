@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Documentation (not needed in container)
+*.md
+!README.md
+docs/
+
+# Build artifacts
+bin/
+web-cli
+*.exe
+
+# Development files
+.env
+.env.*
+!.env.example
+
+# Test files
+*_test.go
+testdata/
+test.sh
+
+# Data files (should be mounted as volumes)
+data/
+*.db
+.encryption_key
+.web-cli-credentials
+.web-cli.pid
+
+# Frontend node_modules (we rebuild in Docker)
+frontend/node_modules/
+frontend/dist/
+
+# Serena/Claude config
+.serena/
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+
+# Docker compose (not needed inside container)
+docker-compose*.yml
+Dockerfile*
+
+# GitHub
+.github/
+
+# License (optional, can be included if needed)
+LICENSE
