@@ -2155,6 +2155,13 @@ For API issues or questions:
 ## Changelog
 
 ### Version 1.1.0 (Security & Features Update)
+- **Docker Deployment:**
+  - Official Docker image on Docker Hub (`polinux/web-cli`)
+  - Multi-platform support (linux/amd64, linux/arm64)
+  - Debian Bookworm base for full bash support
+  - Docker Compose configuration included
+  - GitHub Actions CI/CD for automated builds
+  - Trivy security scanning
 - **Security Enhancements:**
   - Added bcrypt password hashing (cost factor 12)
   - Added SSH host key verification with TOFU support

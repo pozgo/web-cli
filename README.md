@@ -637,6 +637,12 @@ curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 
 Web CLI is available as a Docker image for easy deployment.
 
+**Image Details:**
+- **Registry:** Docker Hub (`polinux/web-cli`)
+- **Base Image:** Debian Bookworm (slim) - provides full bash support for script execution
+- **Platforms:** `linux/amd64`, `linux/arm64`
+- **Size:** ~100MB compressed
+
 **Quick Start with Docker Compose:**
 
 ```bash
