@@ -14,6 +14,9 @@ Complete API reference for the Web CLI application. All endpoints return JSON re
 - [Command Execution](#command-execution)
 - [Saved Commands Management](#saved-commands-management)
 - [Command History](#command-history)
+- [Environment Variables Management](#environment-variables-management)
+- [Bash Scripts Management](#bash-scripts-management)
+- [Script Presets Management](#script-presets-management)
 - [Error Responses](#error-responses)
 - [Security Considerations](#security-considerations)
 
@@ -54,12 +57,61 @@ Default port is `7777`, configurable via `-port` flag or `PORT` environment vari
 | `/saved-commands/{id}` | DELETE | Delete saved command |
 | `/history` | GET | List command history |
 | `/history/{id}` | GET | Get single history entry |
+| `/env-variables` | GET | List all environment variables |
+| `/env-variables` | POST | Create environment variable |
+| `/env-variables/{id}` | GET | Get single environment variable |
+| `/env-variables/{id}` | PUT | Update environment variable |
+| `/env-variables/{id}` | DELETE | Delete environment variable |
+| `/bash-scripts` | GET | List all bash scripts |
+| `/bash-scripts` | POST | Create bash script |
+| `/bash-scripts/{id}` | GET | Get single bash script |
+| `/bash-scripts/{id}` | PUT | Update bash script |
+| `/bash-scripts/{id}` | DELETE | Delete bash script |
+| `/bash-scripts/execute` | POST | Execute a bash script |
+| `/bash-scripts/{id}/presets` | GET | Get presets for a script |
+| `/script-presets` | GET | List all script presets |
+| `/script-presets` | POST | Create script preset |
+| `/script-presets/{id}` | GET | Get single script preset |
+| `/script-presets/{id}` | PUT | Update script preset |
+| `/script-presets/{id}` | DELETE | Delete script preset |
 
 ## Authentication
 
-Currently, the API does not require authentication. All endpoints are publicly accessible.
+Authentication is **disabled by default** for development convenience. In production, enable authentication using environment variables.
 
-**Note**: In production environments, implement proper authentication and authorization mechanisms.
+### Enable Authentication
+
+```bash
+# Enable authentication
+export AUTH_ENABLED=true
+
+# Option 1: HTTP Basic Authentication
+export AUTH_USERNAME="admin"
+export AUTH_PASSWORD="your-secure-password"
+
+# Option 2: API Token (Bearer)
+export AUTH_API_TOKEN="your-api-token-here"
+```
+
+### Using Authentication
+
+**HTTP Basic Auth:**
+```bash
+curl -u admin:password http://localhost:7777/api/health
+```
+
+**Bearer Token:**
+```bash
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
+```
+
+### Security Features
+- Constant-time credential comparison (prevents timing attacks)
+- Supports both Basic Auth and Bearer token simultaneously
+- Bearer token takes precedence if both are provided
+- bcrypt password hashing for stored credentials
+
+**Note**: In production environments, always enable authentication and use HTTPS.
 
 ---
 
@@ -1188,6 +1240,786 @@ curl http://localhost:7777/api/history/1
 
 ---
 
+## Environment Variables Management
+
+Manage encrypted environment variables that can be injected into script executions. All values are encrypted with AES-256-GCM before storage.
+
+### List All Environment Variables
+
+Retrieve all stored environment variables. Values are masked by default for security.
+
+**Endpoint**: `GET /env-variables`
+
+**Query Parameters**:
+- `show_values` (boolean, optional): Set to `true` to show actual values. Default: `false`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "API_KEY",
+    "value": "••••••••",
+    "description": "External API key",
+    "created_at": "2025-11-10T12:00:00Z",
+    "updated_at": "2025-11-10T12:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "DATABASE_URL",
+    "value": "••••••••",
+    "description": "Database connection string",
+    "created_at": "2025-11-10T13:00:00Z",
+    "updated_at": "2025-11-10T13:00:00Z"
+  }
+]
+```
+
+**Example**:
+
+```bash
+# List with masked values
+curl http://localhost:7777/api/env-variables
+
+# List with actual values
+curl "http://localhost:7777/api/env-variables?show_values=true"
+```
+
+---
+
+### Get Single Environment Variable
+
+Retrieve a specific environment variable by ID.
+
+**Endpoint**: `GET /env-variables/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Environment variable ID
+
+**Query Parameters**:
+- `show_value` (boolean, optional): Set to `true` to show actual value. Default: `false`
+
+**Response**: `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "API_KEY",
+  "value": "sk-1234567890abcdef",
+  "description": "External API key",
+  "created_at": "2025-11-10T12:00:00Z",
+  "updated_at": "2025-11-10T12:00:00Z"
+}
+```
+
+**Error Responses**:
+- `404 Not Found`: Environment variable not found
+
+**Example**:
+
+```bash
+curl "http://localhost:7777/api/env-variables/1?show_value=true"
+```
+
+---
+
+### Create Environment Variable
+
+Add a new encrypted environment variable.
+
+**Endpoint**: `POST /env-variables`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "SECRET_TOKEN",
+  "value": "super-secret-value-123",
+  "description": "Authentication token for external service"
+}
+```
+
+**Fields**:
+- `name` (string, required): Variable name (e.g., `API_KEY`, `DATABASE_URL`)
+- `value` (string, required): Variable value (will be encrypted)
+- `description` (string, optional): Description of the variable
+
+**Response**: `201 Created`
+
+```json
+{
+  "id": 3,
+  "name": "SECRET_TOKEN",
+  "value": "••••••••",
+  "description": "Authentication token for external service",
+  "created_at": "2025-11-11T10:00:00Z",
+  "updated_at": "2025-11-11T10:00:00Z"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body or missing required fields
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/env-variables \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "SECRET_TOKEN",
+    "value": "super-secret-value-123",
+    "description": "Authentication token"
+  }'
+```
+
+---
+
+### Update Environment Variable
+
+Update an existing environment variable.
+
+**Endpoint**: `PUT /env-variables/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Environment variable ID
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "UPDATED_TOKEN",
+  "value": "new-secret-value",
+  "description": "Updated description"
+}
+```
+
+**Fields**: All fields are optional; only provided fields will be updated.
+
+**Response**: `200 OK`
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body
+- `404 Not Found`: Environment variable not found
+
+**Example**:
+
+```bash
+curl -X PUT http://localhost:7777/api/env-variables/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "value": "new-secret-value"
+  }'
+```
+
+---
+
+### Delete Environment Variable
+
+Delete an environment variable from the system.
+
+**Endpoint**: `DELETE /env-variables/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Environment variable ID
+
+**Response**: `204 No Content`
+
+**Error Responses**:
+- `404 Not Found`: Environment variable not found
+
+**Example**:
+
+```bash
+curl -X DELETE http://localhost:7777/api/env-variables/1
+```
+
+---
+
+## Bash Scripts Management
+
+Manage stored bash scripts that can be executed locally or remotely. Script content is encrypted with AES-256-GCM before storage.
+
+### List All Bash Scripts
+
+Retrieve all stored bash scripts. Script content is not included in list view for performance.
+
+**Endpoint**: `GET /bash-scripts`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "deploy-app",
+    "description": "Deploy application to production",
+    "content": "",
+    "filename": "deploy.sh",
+    "created_at": "2025-11-10T12:00:00Z",
+    "updated_at": "2025-11-10T12:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "backup-database",
+    "description": "Backup PostgreSQL database",
+    "content": "",
+    "filename": "backup.sh",
+    "created_at": "2025-11-10T13:00:00Z",
+    "updated_at": "2025-11-10T13:00:00Z"
+  }
+]
+```
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/bash-scripts
+```
+
+---
+
+### Get Single Bash Script
+
+Retrieve a specific bash script by ID, including full content.
+
+**Endpoint**: `GET /bash-scripts/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Bash script ID
+
+**Response**: `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "deploy-app",
+  "description": "Deploy application to production",
+  "content": "#!/bin/bash\nset -e\n\necho \"Deploying...\"\ncd /opt/app\ngit pull origin main\nsystemctl restart app\necho \"Done!\"",
+  "filename": "deploy.sh",
+  "created_at": "2025-11-10T12:00:00Z",
+  "updated_at": "2025-11-10T12:00:00Z"
+}
+```
+
+**Error Responses**:
+- `404 Not Found`: Bash script not found
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/bash-scripts/1
+```
+
+---
+
+### Create Bash Script
+
+Add a new bash script to the system.
+
+**Endpoint**: `POST /bash-scripts`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "system-check",
+  "description": "Check system health",
+  "content": "#!/bin/bash\nset -e\necho \"CPU Usage:\"\ntop -bn1 | head -5\necho \"\\nDisk Usage:\"\ndf -h\necho \"\\nMemory:\"\nfree -h",
+  "filename": "system-check.sh"
+}
+```
+
+**Fields**:
+- `name` (string, required): Display name for the script
+- `content` (string, required): Bash script content
+- `description` (string, optional): Description of what the script does
+- `filename` (string, optional): Original filename if uploaded
+
+**Response**: `201 Created`
+
+```json
+{
+  "id": 3,
+  "name": "system-check",
+  "description": "Check system health",
+  "content": "#!/bin/bash\nset -e\n...",
+  "filename": "system-check.sh",
+  "created_at": "2025-11-11T10:00:00Z",
+  "updated_at": "2025-11-11T10:00:00Z"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body or missing required fields
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/bash-scripts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "system-check",
+    "description": "Check system health",
+    "content": "#!/bin/bash\necho \"Hello World\""
+  }'
+```
+
+---
+
+### Update Bash Script
+
+Update an existing bash script.
+
+**Endpoint**: `PUT /bash-scripts/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Bash script ID
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "updated-script-name",
+  "description": "Updated description",
+  "content": "#!/bin/bash\necho \"Updated script\""
+}
+```
+
+**Fields**: All fields are optional; only provided fields will be updated.
+
+**Response**: `200 OK`
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body
+- `404 Not Found`: Bash script not found
+
+**Example**:
+
+```bash
+curl -X PUT http://localhost:7777/api/bash-scripts/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated description"
+  }'
+```
+
+---
+
+### Delete Bash Script
+
+Delete a bash script from the system.
+
+**Endpoint**: `DELETE /bash-scripts/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Bash script ID
+
+**Response**: `204 No Content`
+
+**Error Responses**:
+- `404 Not Found`: Bash script not found
+
+**Example**:
+
+```bash
+curl -X DELETE http://localhost:7777/api/bash-scripts/1
+```
+
+---
+
+### Execute Bash Script
+
+Execute a stored bash script locally or on a remote server, optionally injecting environment variables.
+
+**Endpoint**: `POST /bash-scripts/execute`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body (Local Execution)**:
+
+```json
+{
+  "script_id": 1,
+  "user": "root",
+  "sudo_password": "your-sudo-password",
+  "env_var_ids": [1, 2, 3]
+}
+```
+
+**Request Body (Remote Execution)**:
+
+```json
+{
+  "script_id": 1,
+  "user": "admin",
+  "is_remote": true,
+  "server_id": 1,
+  "ssh_key_id": 2,
+  "ssh_password": "fallback-password",
+  "env_var_ids": [1, 2]
+}
+```
+
+**Fields**:
+- `script_id` (integer, required): ID of the script to execute
+- `user` (string, optional): User to run as. Default: `"root"`
+- `sudo_password` (string, optional): Sudo password for local root execution
+- `ssh_password` (string, optional): SSH password fallback for remote execution
+- `is_remote` (boolean, optional): Set to `true` for remote execution. Default: `false`
+- `server_id` (integer, optional): Server ID for remote execution
+- `ssh_key_id` (integer, optional): SSH key ID for remote authentication
+- `env_var_ids` (array of integers, optional): Environment variable IDs to inject
+
+**Response**: `200 OK`
+
+```json
+{
+  "script_id": 1,
+  "script_name": "deploy-app",
+  "output": "Deploying...\nDone!",
+  "exit_code": 0,
+  "user": "root",
+  "server": "local",
+  "execution_time_ms": 1234,
+  "env_vars_injected": 3
+}
+```
+
+**Fields**:
+- `script_id` (integer): ID of executed script
+- `script_name` (string): Name of executed script
+- `output` (string): Combined stdout and stderr output
+- `exit_code` (integer): Exit code (0 = success)
+- `user` (string): User who executed the script
+- `server` (string): "local" or server name for remote execution
+- `execution_time_ms` (integer): Execution time in milliseconds
+- `env_vars_injected` (integer): Number of environment variables injected
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body or missing required fields
+- `404 Not Found`: Script, server, or SSH key not found
+- `500 Internal Server Error`: Script execution failed
+
+**Example (Local with Env Vars)**:
+
+```bash
+curl -X POST http://localhost:7777/api/bash-scripts/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "user": "root",
+    "env_var_ids": [1, 2]
+  }'
+```
+
+**Example (Remote Execution)**:
+
+```bash
+curl -X POST http://localhost:7777/api/bash-scripts/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "is_remote": true,
+    "server_id": 1,
+    "ssh_key_id": 2,
+    "env_var_ids": [1]
+  }'
+```
+
+---
+
+### Get Script Presets by Script
+
+Retrieve all presets associated with a specific script.
+
+**Endpoint**: `GET /bash-scripts/{id}/presets`
+
+**Path Parameters**:
+- `id` (integer, required): Bash script ID
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Production Deploy",
+    "description": "Deploy to production server",
+    "script_id": 1,
+    "env_var_ids": [1, 2],
+    "is_remote": true,
+    "server_id": 1,
+    "ssh_key_id": 2,
+    "user": "deploy",
+    "created_at": "2025-11-10T12:00:00Z",
+    "updated_at": "2025-11-10T12:00:00Z"
+  }
+]
+```
+
+**Error Responses**:
+- `404 Not Found`: Script not found
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/bash-scripts/1/presets
+```
+
+---
+
+## Script Presets Management
+
+Manage saved script execution configurations. Presets store which environment variables to inject and optionally remote execution settings.
+
+### List All Script Presets
+
+Retrieve all stored script presets.
+
+**Endpoint**: `GET /script-presets`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Production Deploy",
+    "description": "Deploy to production server",
+    "script_id": 1,
+    "env_var_ids": [1, 2],
+    "is_remote": true,
+    "server_id": 1,
+    "ssh_key_id": 2,
+    "user": "deploy",
+    "created_at": "2025-11-10T12:00:00Z",
+    "updated_at": "2025-11-10T12:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "Local Test",
+    "description": "Run script locally for testing",
+    "script_id": 1,
+    "env_var_ids": [3],
+    "is_remote": false,
+    "server_id": null,
+    "ssh_key_id": null,
+    "user": "current",
+    "created_at": "2025-11-10T13:00:00Z",
+    "updated_at": "2025-11-10T13:00:00Z"
+  }
+]
+```
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/script-presets
+```
+
+---
+
+### Get Single Script Preset
+
+Retrieve a specific script preset by ID.
+
+**Endpoint**: `GET /script-presets/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Script preset ID
+
+**Response**: `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Production Deploy",
+  "description": "Deploy to production server",
+  "script_id": 1,
+  "env_var_ids": [1, 2],
+  "is_remote": true,
+  "server_id": 1,
+  "ssh_key_id": 2,
+  "user": "deploy",
+  "created_at": "2025-11-10T12:00:00Z",
+  "updated_at": "2025-11-10T12:00:00Z"
+}
+```
+
+**Error Responses**:
+- `404 Not Found`: Script preset not found
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/script-presets/1
+```
+
+---
+
+### Create Script Preset
+
+Create a new script execution preset.
+
+**Endpoint**: `POST /script-presets`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body (Local Preset)**:
+
+```json
+{
+  "name": "Local Dev Test",
+  "description": "Run locally with dev environment",
+  "script_id": 1,
+  "env_var_ids": [1, 3],
+  "is_remote": false,
+  "user": "current"
+}
+```
+
+**Request Body (Remote Preset)**:
+
+```json
+{
+  "name": "Staging Deploy",
+  "description": "Deploy to staging server",
+  "script_id": 1,
+  "env_var_ids": [1, 2],
+  "is_remote": true,
+  "server_id": 2,
+  "ssh_key_id": 1,
+  "user": "deploy"
+}
+```
+
+**Fields**:
+- `name` (string, required): Display name for the preset
+- `script_id` (integer, required): ID of the associated bash script
+- `description` (string, optional): Description of the preset
+- `env_var_ids` (array of integers, optional): Environment variable IDs to inject
+- `is_remote` (boolean, optional): Whether this is for remote execution. Default: `false`
+- `server_id` (integer, optional): Server ID for remote execution
+- `ssh_key_id` (integer, optional): SSH key ID for remote authentication
+- `user` (string, optional): User to run as. Default: `"root"`
+
+**Response**: `201 Created`
+
+```json
+{
+  "id": 3,
+  "name": "Staging Deploy",
+  "description": "Deploy to staging server",
+  "script_id": 1,
+  "env_var_ids": [1, 2],
+  "is_remote": true,
+  "server_id": 2,
+  "ssh_key_id": 1,
+  "user": "deploy",
+  "created_at": "2025-11-11T10:00:00Z",
+  "updated_at": "2025-11-11T10:00:00Z"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body or missing required fields
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/script-presets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Staging Deploy",
+    "script_id": 1,
+    "env_var_ids": [1, 2],
+    "is_remote": true,
+    "server_id": 2,
+    "ssh_key_id": 1
+  }'
+```
+
+---
+
+### Update Script Preset
+
+Update an existing script preset.
+
+**Endpoint**: `PUT /script-presets/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Script preset ID
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "Updated Preset Name",
+  "env_var_ids": [1, 2, 3],
+  "user": "admin"
+}
+```
+
+**Fields**: All fields are optional; only provided fields will be updated.
+
+**Response**: `200 OK`
+
+**Error Responses**:
+- `400 Bad Request`: Invalid request body
+- `404 Not Found`: Script preset not found
+
+**Example**:
+
+```bash
+curl -X PUT http://localhost:7777/api/script-presets/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "env_var_ids": [1, 2, 3]
+  }'
+```
+
+---
+
+### Delete Script Preset
+
+Delete a script preset from the system.
+
+**Endpoint**: `DELETE /script-presets/{id}`
+
+**Path Parameters**:
+- `id` (integer, required): Script preset ID
+
+**Response**: `204 No Content`
+
+**Error Responses**:
+- `404 Not Found`: Script preset not found
+
+**Example**:
+
+```bash
+curl -X DELETE http://localhost:7777/api/script-presets/1
+```
+
+---
+
 ## Error Responses
 
 All API endpoints use standard HTTP status codes and return JSON error responses.
@@ -1244,30 +2076,57 @@ All API endpoints use standard HTTP status codes and return JSON error responses
 ### Encryption
 
 - All SSH private keys are encrypted with **AES-256-GCM** before storage
+- Environment variable values are encrypted at rest
+- Bash script content is encrypted at rest
 - Command output is encrypted in the database
 - Encryption key is stored in `.encryption_key` file (backup this file!)
+- System entropy is verified before generating encryption keys (Linux)
 
 ### Password Handling
 
 - **SSH passwords are NEVER stored in command history** (security feature)
 - Sudo passwords are only used for command execution and discarded immediately
-- Passwords are transmitted over HTTP - use HTTPS in production
+- Passwords hashed with **bcrypt** (cost factor 12) when stored
+- Constant-time comparison prevents timing attacks
 
 ### Authentication
 
-- Current version has no authentication
-- **Production deployment requires authentication** (implement JWT, OAuth, etc.)
-- Consider IP whitelisting or VPN access
+- HTTP Basic Authentication supported
+- Bearer token (API token) authentication supported
+- **Production deployment requires enabling authentication** (`AUTH_ENABLED=true`)
+- Supports both methods simultaneously (token takes precedence)
+
+### TLS/HTTPS
+
+- Native TLS support with `-tls-cert` and `-tls-key` flags
+- Optional HTTPS enforcement with `-require-https`
+- Security headers included (X-Frame-Options, X-Content-Type-Options, etc.)
+
+### SSH Security
+
+- **Host key verification** against `~/.ssh/known_hosts`
+- Trust-on-first-use (TOFU) mode for development
+- Man-in-the-middle attack detection
+
+### Input Validation
+
+- IP addresses validated (IPv4/IPv6)
+- Hostnames validated (RFC 1123 compliant)
+- Port numbers validated (1-65535)
+- SSH private keys format validated
+- Unix usernames validated
+- Command names checked for malicious content
 
 ### Best Practices
 
-1. **Use HTTPS** in production environments
-2. **Implement authentication** before deploying to production
+1. **Enable authentication** in production (`AUTH_ENABLED=true`)
+2. **Use HTTPS** - either native TLS or reverse proxy
 3. **Backup encryption key** - data cannot be recovered without it
 4. **Use SSH key authentication** over passwords when possible
-5. **Validate all inputs** on the client side before sending to API
+5. **Configure CORS** - set `CORS_ALLOWED_ORIGINS` for production
 6. **Monitor command history** for suspicious activity
 7. **Limit API access** to trusted networks
+8. **Set up proper HTTP timeouts** - configured automatically for DoS protection
 
 ---
 
@@ -1294,6 +2153,31 @@ For API issues or questions:
 ---
 
 ## Changelog
+
+### Version 1.1.0 (Security & Features Update)
+- **Security Enhancements:**
+  - Added bcrypt password hashing (cost factor 12)
+  - Added SSH host key verification with TOFU support
+  - Added comprehensive input validation
+  - Added native TLS/HTTPS support
+  - Added HTTPS enforcement option
+  - Added security headers middleware
+  - Added system entropy verification for key generation
+  - Added detailed decryption audit logging
+- **Configuration:**
+  - Added Viper configuration management
+  - Support for config files (YAML, JSON, TOML)
+  - Support for WEBCLI_ prefixed environment variables
+  - Multiple config file search paths
+- **New Features:**
+  - Added Environment Variables Management (5 endpoints)
+  - Added Bash Scripts Management (7 endpoints)
+  - Added Script Presets Management (5 endpoints)
+  - Total API endpoints: 41
+- **Authentication:**
+  - HTTP Basic Auth support
+  - Bearer token support
+  - Configurable via environment variables
 
 ### Version 1.0.0 (Stage 6.1)
 - Fixed saved commands filter in LocalCommands component
@@ -1325,5 +2209,5 @@ For API issues or questions:
 
 ---
 
-**Last Updated**: November 11, 2025
-**API Version**: 1.0.0
+**Last Updated**: December 7, 2025
+**API Version**: 1.1.0

@@ -52,15 +52,30 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **Smart Navigation**: Execute button routes to appropriate page based on command type
 - **Command History**: Complete execution history with output, exit codes, and timing
 
+### Environment Variables
+- **Secure Storage**: Store sensitive environment variables with AES-256-GCM encryption
+- **Masked Display**: Values masked by default in API responses
+- **Script Injection**: Inject stored env vars into script executions
+
+### Bash Scripts
+- **Script Library**: Store and manage reusable bash scripts
+- **Local & Remote Execution**: Execute scripts on local or remote servers
+- **Script Presets**: Save execution configurations (server, SSH key, user, env vars)
+- **Environment Integration**: Inject stored environment variables into scripts
+
 ### Security
 - **Authentication**: HTTP Basic Auth and Bearer token support (configurable)
-- **SSH Host Key Verification**: Proper host key checking against known_hosts
+- **TLS/HTTPS Support**: Native TLS support with optional HTTPS enforcement
+- **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy
+- **SSH Host Key Verification**: Proper host key checking against known_hosts with TOFU support
 - **Input Validation**: Comprehensive validation for all user inputs
 - **Encrypted Database**: SQLite with AES-256-GCM encryption for sensitive data
+- **bcrypt Password Hashing**: Secure password hashing with cost factor 12
 - **HTTP Timeouts**: Protection against slowloris and DoS attacks
 - **CORS Policy**: Restrictive CORS with configurable origins
 - **Secure Password Handling**: SSH passwords never stored in command history
-- **Automatic Encryption**: All SSH keys and command history encrypted at rest
+- **Automatic Encryption**: All SSH keys, scripts, and env variables encrypted at rest
+- **Entropy Verification**: System entropy check before cryptographic key generation (Linux)
 - **Database Migrations**: Automatic schema versioning and migration system
 
 ## 🛠 Tech Stack
@@ -68,10 +83,13 @@ A powerful web-based interface for executing commands on local and remote Linux 
 ### Backend
 - **[Go 1.21+](https://golang.org/)**: High-performance backend server
 - **[Gorilla Mux](https://github.com/gorilla/mux)**: HTTP router for API endpoints
+- **[Viper](https://github.com/spf13/viper)**: Configuration management with env, file, and flag support
 - **[SQLite](https://www.sqlite.org/)**: Embedded database with migration support
 - **[golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh)**: SSH client with host key verification
+- **[golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)**: Secure password hashing
 - **AES-256-GCM**: Military-grade encryption for sensitive data
 - **Authentication Middleware**: HTTP Basic Auth and Bearer token support
+- **Security Middleware**: HTTPS enforcement and security headers
 - **Input Validation**: Comprehensive validation for security
 
 ### Frontend
@@ -218,13 +236,16 @@ curl http://localhost:7777/api/health
 | **Commands** | 1 endpoint | Execute local/remote commands |
 | **Saved Commands** | 5 endpoints | Manage command templates |
 | **History** | 2 endpoints | View execution history |
+| **Environment Variables** | 5 endpoints | Manage encrypted env variables |
+| **Bash Scripts** | 6 endpoints | Manage and execute scripts |
+| **Script Presets** | 5 endpoints | Manage execution presets |
 
-**Total: 25 RESTful API endpoints**
+**Total: 41 RESTful API endpoints**
 
 ### 📖 Complete Documentation
 
 For detailed API documentation including:
-- ✅ All 25 endpoints with full descriptions
+- ✅ All 41 endpoints with full descriptions
 - ✅ Request/response examples with cURL commands
 - ✅ Field descriptions and validation rules
 - ✅ Error response formats and status codes
@@ -278,24 +299,62 @@ curl -H "Authorization: Bearer your-api-token" \
 ./web-cli [options]
 
 Options:
-  -port int             Port to listen on (default: 7777)
-  -host string          Host to bind to (default: 0.0.0.0)
-  -frontend string      Path to frontend build files (default: ./frontend/dist)
-  -db string            Path to database file (default: ./data/web-cli.db)
+  -port int              Port to listen on (default: 7777)
+  -host string           Host to bind to (default: 0.0.0.0)
+  -frontend string       Path to frontend build files (default: ./frontend/dist)
+  -db string             Path to database file (default: ./data/web-cli.db)
   -encryption-key string Path to encryption key file (default: ./.encryption_key)
+  -tls-cert string       Path to TLS certificate file (enables HTTPS)
+  -tls-key string        Path to TLS private key file
+  -require-https         Require HTTPS when auth is enabled (reject HTTP requests)
 ```
 
 ### Environment Variables
 
+All configuration options can be set via environment variables:
+
 ```bash
+# Standard environment variables
 PORT=8080 HOST=localhost ./web-cli
+
+# WEBCLI-prefixed variables (recommended)
+WEBCLI_PORT=8080
+WEBCLI_HOST=localhost
+WEBCLI_DATABASE_PATH=/var/lib/web-cli/web-cli.db
+WEBCLI_ENCRYPTION_KEY_PATH=/etc/web-cli/encryption.key
+WEBCLI_TLS_CERT_PATH=/etc/ssl/certs/web-cli.crt
+WEBCLI_TLS_KEY_PATH=/etc/ssl/private/web-cli.key
+WEBCLI_REQUIRE_HTTPS=true
+```
+
+### Configuration File
+
+Web CLI supports configuration files in YAML, JSON, or TOML format. Configuration files are searched in the following locations (first found is used):
+
+1. `./config.yaml` (current directory)
+2. `./config/config.yaml` (config subdirectory)
+3. `/etc/web-cli/config.yaml` (system config)
+4. `~/.config/web-cli/config.yaml` (user config)
+
+**Example config.yaml:**
+
+```yaml
+port: 7777
+host: "0.0.0.0"
+frontend_path: "./assets/frontend"
+database_path: "./data/web-cli.db"
+encryption_key_path: "./.encryption_key"
+tls_cert_path: "/etc/ssl/certs/web-cli.crt"
+tls_key_path: "/etc/ssl/private/web-cli.key"
+require_https: true
 ```
 
 ### Configuration Priority
 
 1. Command-line flags (highest priority)
 2. Environment variables
-3. Default values (lowest priority)
+3. Configuration file
+4. Default values (lowest priority)
 
 ## 🔒 Security
 
@@ -333,9 +392,39 @@ curl -u admin:password http://localhost:7777/api/health
 curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 ```
 
+### TLS/HTTPS Support
+
+**Native TLS support for encrypted connections:**
+
+```bash
+# Enable TLS with certificate and key
+./web-cli -tls-cert /path/to/cert.pem -tls-key /path/to/key.pem
+
+# Or via environment variables
+WEBCLI_TLS_CERT_PATH=/path/to/cert.pem \
+WEBCLI_TLS_KEY_PATH=/path/to/key.pem \
+./web-cli
+
+# Enforce HTTPS when authentication is enabled
+./web-cli -tls-cert cert.pem -tls-key key.pem -require-https
+```
+
+**Features:**
+- Native Go TLS implementation (no reverse proxy required)
+- Automatic HTTPS when certificate and key are provided
+- Optional HTTPS enforcement (rejects HTTP requests)
+- Works with any TLS certificate (self-signed, Let's Encrypt, etc.)
+
+**Generate self-signed certificate for testing:**
+
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem \
+  -days 365 -nodes -subj "/CN=localhost"
+```
+
 ### SSH Host Key Verification
 
-**Replaced insecure SSH connection with proper host key verification:**
+**Proper host key verification for secure SSH connections:**
 
 - Verifies SSH host keys against `~/.ssh/known_hosts`
 - Supports "trust on first use" mode for development
@@ -432,7 +521,7 @@ chmod 600 .encryption_key
 - Automatic schema versioning
 - Migrations run on startup
 - Safe to restart - migrations only run once
-- Current schema version: **11**
+- Current schema version: **14**
 
 ## 🌐 Deployment
 
@@ -499,7 +588,7 @@ Before deploying to production, ensure:
 - ✅ **Input validation**: All inputs validated automatically
 
 **Additional Requirements:**
-- [ ] **HTTPS enabled**: Use reverse proxy (nginx/caddy) with TLS certificates
+- [ ] **HTTPS enabled**: Use native TLS (`-tls-cert`, `-tls-key`) or reverse proxy
 - [ ] **Encryption key backup**: Backup `.encryption_key` - data cannot be recovered without it
 - [ ] **Security scan**: Run `gosec ./...` or similar security scanner
 - [ ] **Monitor logs**: Check for authentication failures and errors
@@ -521,9 +610,14 @@ CORS_ALLOWED_ORIGINS=https://web-cli.yourdomain.com
 # Encryption (REQUIRED)
 ENCRYPTION_KEY=$(openssl rand -base64 32)
 
+# TLS/HTTPS (RECOMMENDED for production)
+WEBCLI_TLS_CERT_PATH=/etc/ssl/certs/web-cli.crt
+WEBCLI_TLS_KEY_PATH=/etc/ssl/private/web-cli.key
+WEBCLI_REQUIRE_HTTPS=true
+
 # Server Config (Optional)
-PORT=7777
-HOST=0.0.0.0
+WEBCLI_PORT=7777
+WEBCLI_HOST=0.0.0.0
 ```
 
 **Testing Authentication:**
