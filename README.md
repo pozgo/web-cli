@@ -704,7 +704,7 @@ docker run -d \
   -e AUTH_ENABLED=true \
   -e AUTH_USERNAME=admin \
   -e AUTH_PASSWORD=your-secure-password \
-  ghcr.io/pozgo/web-cli:latest
+  polinux/web-cli:latest
 ```
 
 **With TLS/HTTPS:**
@@ -720,7 +720,7 @@ docker run -d \
   -e AUTH_ENABLED=true \
   -e AUTH_USERNAME=admin \
   -e AUTH_PASSWORD=your-secure-password \
-  ghcr.io/pozgo/web-cli:latest
+  polinux/web-cli:latest
 ```
 
 **Docker Environment Variables:**
@@ -857,7 +857,6 @@ For issues and questions:
 - 📫 Open an issue on [GitHub Issues](https://github.com/pozgo/web-cli/issues)
 - 📖 Check the [API Documentation](API.md)
 - 🔒 Review [Security Improvements](SECURITY_IMPROVEMENTS.md) for security features
-- 🤖 See [CLAUDE.md](CLAUDE.md) for AI development guidance
 
 ## 🙏 Acknowledgments
 
