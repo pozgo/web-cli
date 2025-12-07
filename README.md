@@ -633,9 +633,121 @@ curl -u admin:password http://localhost:7777/api/health
 curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 ```
 
-### Docker (Optional)
+### Docker
 
-> **Note**: Docker support can be added. Create an issue if you need it.
+Web CLI is available as a Docker image for easy deployment.
+
+**Quick Start with Docker Compose:**
+
+```bash
+# Clone the repository
+git clone https://github.com/pozgo/web-cli.git
+cd web-cli
+
+# Start with default settings
+docker compose up -d
+
+# View logs
+docker compose logs -f
+```
+
+**Access:** `http://localhost:7777`
+
+**Build Locally:**
+
+```bash
+# Build the image
+docker compose build
+
+# Or build directly
+docker build -t web-cli .
+```
+
+**Run with Custom Configuration:**
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+
+# Start with custom configuration
+docker compose up -d
+```
+
+**Production Deployment:**
+
+```bash
+# Create .env with production settings
+cat > .env << 'EOF'
+AUTH_ENABLED=true
+AUTH_USERNAME=admin
+AUTH_PASSWORD=$(openssl rand -base64 24)
+WEBCLI_PORT=7777
+EOF
+
+# Start the container
+docker compose up -d
+
+# Check credentials
+cat .env | grep AUTH_
+```
+
+**Docker Run (without Compose):**
+
+```bash
+docker run -d \
+  --name web-cli \
+  -p 7777:7777 \
+  -v web-cli-data:/data \
+  -e AUTH_ENABLED=true \
+  -e AUTH_USERNAME=admin \
+  -e AUTH_PASSWORD=your-secure-password \
+  ghcr.io/pozgo/web-cli:latest
+```
+
+**With TLS/HTTPS:**
+
+```bash
+docker run -d \
+  --name web-cli \
+  -p 7777:7777 \
+  -v web-cli-data:/data \
+  -v ./certs:/certs:ro \
+  -e WEBCLI_TLS_CERT_PATH=/certs/cert.pem \
+  -e WEBCLI_TLS_KEY_PATH=/certs/key.pem \
+  -e AUTH_ENABLED=true \
+  -e AUTH_USERNAME=admin \
+  -e AUTH_PASSWORD=your-secure-password \
+  ghcr.io/pozgo/web-cli:latest
+```
+
+**Docker Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WEBCLI_PORT` | `7777` | Port to listen on |
+| `WEBCLI_HOST` | `0.0.0.0` | Host to bind to |
+| `WEBCLI_DATABASE_PATH` | `/data/web-cli.db` | Database file path |
+| `WEBCLI_ENCRYPTION_KEY_PATH` | `/data/.encryption_key` | Encryption key file path |
+| `ENCRYPTION_KEY` | (auto-generated) | Base64 encryption key |
+| `AUTH_ENABLED` | `false` | Enable authentication |
+| `AUTH_USERNAME` | `admin` | Basic auth username |
+| `AUTH_PASSWORD` | (none) | Basic auth password |
+| `AUTH_API_TOKEN` | (none) | Bearer token |
+| `WEBCLI_TLS_CERT_PATH` | (none) | TLS certificate path |
+| `WEBCLI_TLS_KEY_PATH` | (none) | TLS private key path |
+| `WEBCLI_REQUIRE_HTTPS` | `false` | Require HTTPS |
+| `CORS_ALLOWED_ORIGINS` | (localhost) | Allowed CORS origins |
+
+**Volumes:**
+
+| Path | Description |
+|------|-------------|
+| `/data` | Persistent data (database, encryption key) |
+| `/config` | Configuration files (optional) |
+| `/certs` | TLS certificates (optional) |
 
 ## 💻 Development
 
