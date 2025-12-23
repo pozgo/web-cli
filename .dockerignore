@@ -8,10 +8,11 @@
 *.swp
 *.swo
 
-# Documentation (not needed in container)
+# Documentation markdown files (not needed in container)
 *.md
 !README.md
-docs/
+# Note: docs/ directory is needed for Swagger API documentation
+docs/images/
 
 # Build artifacts
 bin/

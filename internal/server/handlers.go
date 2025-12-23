@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/user"
 	"strconv"
 	"strings"
@@ -17,7 +18,38 @@ import (
 	"github.com/pozgo/web-cli/internal/validation"
 )
 
-// handleListSSHKeys returns all SSH keys
+// ErrorResponse represents an error response
+// @Description Error response returned by the API
+type ErrorResponse struct {
+	Error string `json:"error" example:"Invalid request body"`
+}
+
+// HealthResponse represents the health check response
+// @Description Health check response
+type HealthResponse struct {
+	Status string `json:"status" example:"ok"`
+}
+
+// CurrentUserResponse represents the current user response
+// @Description Current system user information
+type CurrentUserResponse struct {
+	Username string `json:"username" example:"root"`
+	UID      string `json:"uid" example:"0"`
+	GID      string `json:"gid" example:"0"`
+	Name     string `json:"name" example:"root"`
+	HomeDir  string `json:"home_dir" example:"/root"`
+}
+
+// handleListSSHKeys godoc
+// @Summary List all SSH keys
+// @Description Get a list of all SSH keys stored in the system
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.SSHKey
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys [get]
 func (s *Server) handleListSSHKeys(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewSSHKeyRepository(s.db)
 
@@ -32,7 +64,18 @@ func (s *Server) handleListSSHKeys(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(keys)
 }
 
-// handleCreateSSHKey creates a new SSH key
+// handleCreateSSHKey godoc
+// @Summary Create a new SSH key
+// @Description Store a new SSH private key in the system
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Param key body models.SSHKeyCreate true "SSH Key to create"
+// @Success 201 {object} models.SSHKey
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys [post]
 func (s *Server) handleCreateSSHKey(w http.ResponseWriter, r *http.Request) {
 	var keyCreate models.SSHKeyCreate
 
@@ -66,7 +109,18 @@ func (s *Server) handleCreateSSHKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(key)
 }
 
-// handleGetSSHKey returns a single SSH key by ID
+// handleGetSSHKey godoc
+// @Summary Get an SSH key by ID
+// @Description Get a single SSH key by its ID
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Param id path int true "SSH Key ID"
+// @Success 200 {object} models.SSHKey
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys/{id} [get]
 func (s *Server) handleGetSSHKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -90,7 +144,19 @@ func (s *Server) handleGetSSHKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(key)
 }
 
-// handleUpdateSSHKey updates an existing SSH key by ID
+// handleUpdateSSHKey godoc
+// @Summary Update an SSH key
+// @Description Update an existing SSH key by its ID
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Param id path int true "SSH Key ID"
+// @Param key body models.SSHKeyUpdate true "SSH Key update data"
+// @Success 200 {object} models.SSHKey
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys/{id} [put]
 func (s *Server) handleUpdateSSHKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -127,7 +193,18 @@ func (s *Server) handleUpdateSSHKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(key)
 }
 
-// handleDeleteSSHKey deletes an SSH key by ID
+// handleDeleteSSHKey godoc
+// @Summary Delete an SSH key
+// @Description Delete an SSH key by its ID
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Param id path int true "SSH Key ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys/{id} [delete]
 func (s *Server) handleDeleteSSHKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -149,7 +226,16 @@ func (s *Server) handleDeleteSSHKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleListServers returns all servers
+// handleListServers godoc
+// @Summary List all servers
+// @Description Get a list of all remote servers configured in the system
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.Server
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers [get]
 func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewServerRepository(s.db)
 
@@ -164,7 +250,18 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(servers)
 }
 
-// handleCreateServer creates a new server
+// handleCreateServer godoc
+// @Summary Create a new server
+// @Description Add a new remote server configuration
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Param server body models.ServerCreate true "Server to create"
+// @Success 201 {object} models.Server
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers [post]
 func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	var serverCreate models.ServerCreate
 
@@ -225,7 +322,18 @@ func (s *Server) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(server)
 }
 
-// handleGetServer returns a single server by ID
+// handleGetServer godoc
+// @Summary Get a server by ID
+// @Description Get a single server configuration by its ID
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Param id path int true "Server ID"
+// @Success 200 {object} models.Server
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers/{id} [get]
 func (s *Server) handleGetServer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -249,7 +357,19 @@ func (s *Server) handleGetServer(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(server)
 }
 
-// handleUpdateServer updates an existing server by ID
+// handleUpdateServer godoc
+// @Summary Update a server
+// @Description Update an existing server configuration by its ID
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Param id path int true "Server ID"
+// @Param server body models.ServerUpdate true "Server update data"
+// @Success 200 {object} models.Server
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers/{id} [put]
 func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -286,7 +406,18 @@ func (s *Server) handleUpdateServer(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(server)
 }
 
-// handleDeleteServer deletes a server by ID
+// handleDeleteServer godoc
+// @Summary Delete a server
+// @Description Delete a server configuration by its ID
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Param id path int true "Server ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers/{id} [delete]
 func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -308,7 +439,19 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleExecuteCommand executes a command locally
+// handleExecuteCommand godoc
+// @Summary Execute a command
+// @Description Execute a shell command locally or remotely via SSH
+// @Tags Commands
+// @Accept json
+// @Produce json
+// @Param command body models.CommandExecution true "Command execution request"
+// @Success 200 {object} models.CommandResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /commands/execute [post]
 func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 	var exec models.CommandExecution
 
@@ -437,7 +580,16 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleListSavedCommands returns all saved commands
+// handleListSavedCommands godoc
+// @Summary List all saved commands
+// @Description Get a list of all saved command templates
+// @Tags Saved Commands
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.SavedCommand
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /saved-commands [get]
 func (s *Server) handleListSavedCommands(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewSavedCommandRepository(s.db)
 
@@ -452,7 +604,18 @@ func (s *Server) handleListSavedCommands(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(commands)
 }
 
-// handleCreateSavedCommand creates a new saved command
+// handleCreateSavedCommand godoc
+// @Summary Create a saved command
+// @Description Create a new saved command template
+// @Tags Saved Commands
+// @Accept json
+// @Produce json
+// @Param command body models.SavedCommandCreate true "Saved command to create"
+// @Success 201 {object} models.SavedCommand
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /saved-commands [post]
 func (s *Server) handleCreateSavedCommand(w http.ResponseWriter, r *http.Request) {
 	var cmdCreate models.SavedCommandCreate
 
@@ -486,7 +649,18 @@ func (s *Server) handleCreateSavedCommand(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(cmd)
 }
 
-// handleGetSavedCommand returns a single saved command by ID
+// handleGetSavedCommand godoc
+// @Summary Get a saved command by ID
+// @Description Get a single saved command template by its ID
+// @Tags Saved Commands
+// @Accept json
+// @Produce json
+// @Param id path int true "Saved Command ID"
+// @Success 200 {object} models.SavedCommand
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /saved-commands/{id} [get]
 func (s *Server) handleGetSavedCommand(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -510,7 +684,19 @@ func (s *Server) handleGetSavedCommand(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(cmd)
 }
 
-// handleUpdateSavedCommand updates an existing saved command by ID
+// handleUpdateSavedCommand godoc
+// @Summary Update a saved command
+// @Description Update an existing saved command template by its ID
+// @Tags Saved Commands
+// @Accept json
+// @Produce json
+// @Param id path int true "Saved Command ID"
+// @Param command body models.SavedCommandUpdate true "Saved command update data"
+// @Success 200 {object} models.SavedCommand
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /saved-commands/{id} [put]
 func (s *Server) handleUpdateSavedCommand(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -541,7 +727,18 @@ func (s *Server) handleUpdateSavedCommand(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(cmd)
 }
 
-// handleDeleteSavedCommand deletes a saved command by ID
+// handleDeleteSavedCommand godoc
+// @Summary Delete a saved command
+// @Description Delete a saved command template by its ID
+// @Tags Saved Commands
+// @Accept json
+// @Produce json
+// @Param id path int true "Saved Command ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /saved-commands/{id} [delete]
 func (s *Server) handleDeleteSavedCommand(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -563,7 +760,18 @@ func (s *Server) handleDeleteSavedCommand(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleListCommandHistory returns command history
+// handleListCommandHistory godoc
+// @Summary List command history
+// @Description Get command execution history with optional filtering
+// @Tags Command History
+// @Accept json
+// @Produce json
+// @Param server query string false "Filter by server name"
+// @Param limit query int false "Maximum number of records to return" default(100)
+// @Success 200 {array} models.CommandHistory
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /history [get]
 func (s *Server) handleListCommandHistory(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewCommandHistoryRepository(s.db)
 
@@ -597,7 +805,18 @@ func (s *Server) handleListCommandHistory(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(history)
 }
 
-// handleGetCommandHistory returns a single command history entry by ID
+// handleGetCommandHistory godoc
+// @Summary Get a command history entry by ID
+// @Description Get a single command history entry by its ID
+// @Tags Command History
+// @Accept json
+// @Produce json
+// @Param id path int true "Command History ID"
+// @Success 200 {object} models.CommandHistory
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /history/{id} [get]
 func (s *Server) handleGetCommandHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -621,7 +840,16 @@ func (s *Server) handleGetCommandHistory(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(history)
 }
 
-// handleListLocalUsers returns all local users
+// handleListLocalUsers godoc
+// @Summary List all local users
+// @Description Get a list of all local system users configured for command execution
+// @Tags Local Users
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.LocalUser
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /local-users [get]
 func (s *Server) handleListLocalUsers(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewLocalUserRepository(s.db)
 
@@ -636,7 +864,18 @@ func (s *Server) handleListLocalUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-// handleCreateLocalUser creates a new local user
+// handleCreateLocalUser godoc
+// @Summary Create a local user
+// @Description Add a new local system user for command execution
+// @Tags Local Users
+// @Accept json
+// @Produce json
+// @Param user body models.LocalUserCreate true "Local user to create"
+// @Success 201 {object} models.LocalUser
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /local-users [post]
 func (s *Server) handleCreateLocalUser(w http.ResponseWriter, r *http.Request) {
 	var userCreate models.LocalUserCreate
 
@@ -665,7 +904,18 @@ func (s *Server) handleCreateLocalUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// handleGetLocalUser returns a single local user by ID
+// handleGetLocalUser godoc
+// @Summary Get a local user by ID
+// @Description Get a single local user by its ID
+// @Tags Local Users
+// @Accept json
+// @Produce json
+// @Param id path int true "Local User ID"
+// @Success 200 {object} models.LocalUser
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /local-users/{id} [get]
 func (s *Server) handleGetLocalUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -689,7 +939,19 @@ func (s *Server) handleGetLocalUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// handleUpdateLocalUser updates an existing local user
+// handleUpdateLocalUser godoc
+// @Summary Update a local user
+// @Description Update an existing local user by its ID
+// @Tags Local Users
+// @Accept json
+// @Produce json
+// @Param id path int true "Local User ID"
+// @Param user body models.LocalUserUpdate true "Local user update data"
+// @Success 200 {object} models.LocalUser
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /local-users/{id} [put]
 func (s *Server) handleUpdateLocalUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -720,7 +982,18 @@ func (s *Server) handleUpdateLocalUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// handleDeleteLocalUser deletes a local user by ID
+// handleDeleteLocalUser godoc
+// @Summary Delete a local user
+// @Description Delete a local user by its ID
+// @Tags Local Users
+// @Accept json
+// @Produce json
+// @Param id path int true "Local User ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /local-users/{id} [delete]
 func (s *Server) handleDeleteLocalUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -742,7 +1015,16 @@ func (s *Server) handleDeleteLocalUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleGetCurrentUser returns the current system user
+// handleGetCurrentUser godoc
+// @Summary Get current system user
+// @Description Get information about the current system user running the server
+// @Tags System
+// @Accept json
+// @Produce json
+// @Success 200 {object} CurrentUserResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /system/current-user [get]
 func (s *Server) handleGetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	currentUser, err := user.Current()
 	if err != nil {
@@ -761,7 +1043,62 @@ func (s *Server) handleGetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleListEnvVariables returns all environment variables (with masked values by default)
+// ShellInfo represents information about an available shell
+// @Description Information about an available shell
+type ShellInfo struct {
+	Name string `json:"name" example:"bash"`
+	Path string `json:"path" example:"/bin/bash"`
+}
+
+// handleListAvailableShells godoc
+// @Summary List available shells
+// @Description Get a list of shells that are installed and available on the system
+// @Tags System
+// @Accept json
+// @Produce json
+// @Success 200 {array} ShellInfo
+// @Security BasicAuth
+// @Router /system/shells [get]
+func (s *Server) handleListAvailableShells(w http.ResponseWriter, r *http.Request) {
+	// List of common shells to check
+	shellsToCheck := []struct {
+		name  string
+		paths []string
+	}{
+		{"bash", []string{"/bin/bash", "/usr/bin/bash"}},
+		{"sh", []string{"/bin/sh", "/usr/bin/sh"}},
+		{"zsh", []string{"/bin/zsh", "/usr/bin/zsh"}},
+	}
+
+	var availableShells []ShellInfo
+
+	for _, shell := range shellsToCheck {
+		for _, path := range shell.paths {
+			if _, err := os.Stat(path); err == nil {
+				availableShells = append(availableShells, ShellInfo{
+					Name: shell.name,
+					Path: path,
+				})
+				break // Found this shell, move to next
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(availableShells)
+}
+
+// handleListEnvVariables godoc
+// @Summary List all environment variables
+// @Description Get a list of all environment variables (values masked by default)
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Param show_values query bool false "Show actual values instead of masked values"
+// @Success 200 {array} models.EnvVariableResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables [get]
 func (s *Server) handleListEnvVariables(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewEnvVariableRepository(s.db)
 
@@ -785,7 +1122,18 @@ func (s *Server) handleListEnvVariables(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(responses)
 }
 
-// handleCreateEnvVariable creates a new environment variable
+// handleCreateEnvVariable godoc
+// @Summary Create an environment variable
+// @Description Create a new environment variable (stored encrypted)
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Param envvar body models.EnvVariableCreate true "Environment variable to create"
+// @Success 201 {object} models.EnvVariableResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables [post]
 func (s *Server) handleCreateEnvVariable(w http.ResponseWriter, r *http.Request) {
 	var envVarCreate models.EnvVariableCreate
 
@@ -820,7 +1168,19 @@ func (s *Server) handleCreateEnvVariable(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(envVar.ToResponse(false))
 }
 
-// handleGetEnvVariable returns a single environment variable by ID
+// handleGetEnvVariable godoc
+// @Summary Get an environment variable by ID
+// @Description Get a single environment variable by its ID
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Param id path int true "Environment Variable ID"
+// @Param show_value query bool false "Show actual value instead of masked value"
+// @Success 200 {object} models.EnvVariableResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables/{id} [get]
 func (s *Server) handleGetEnvVariable(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -847,7 +1207,19 @@ func (s *Server) handleGetEnvVariable(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(envVar.ToResponse(showValue))
 }
 
-// handleUpdateEnvVariable updates an existing environment variable by ID
+// handleUpdateEnvVariable godoc
+// @Summary Update an environment variable
+// @Description Update an existing environment variable by its ID
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Param id path int true "Environment Variable ID"
+// @Param envvar body models.EnvVariableUpdate true "Environment variable update data"
+// @Success 200 {object} models.EnvVariableResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables/{id} [put]
 func (s *Server) handleUpdateEnvVariable(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -893,7 +1265,18 @@ func (s *Server) handleUpdateEnvVariable(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(envVar.ToResponse(false))
 }
 
-// handleDeleteEnvVariable deletes an environment variable by ID
+// handleDeleteEnvVariable godoc
+// @Summary Delete an environment variable
+// @Description Delete an environment variable by its ID
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Param id path int true "Environment Variable ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables/{id} [delete]
 func (s *Server) handleDeleteEnvVariable(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -915,7 +1298,16 @@ func (s *Server) handleDeleteEnvVariable(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleListBashScripts returns all bash scripts (without content by default)
+// handleListBashScripts godoc
+// @Summary List all bash scripts
+// @Description Get a list of all bash scripts (without content by default)
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.BashScriptResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts [get]
 func (s *Server) handleListBashScripts(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewBashScriptRepository(s.db)
 
@@ -933,7 +1325,18 @@ func (s *Server) handleListBashScripts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(responses)
 }
 
-// handleCreateBashScript creates a new bash script
+// handleCreateBashScript godoc
+// @Summary Create a bash script
+// @Description Create a new bash script (stored encrypted)
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Param script body models.BashScriptCreate true "Bash script to create"
+// @Success 201 {object} models.BashScriptResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts [post]
 func (s *Server) handleCreateBashScript(w http.ResponseWriter, r *http.Request) {
 	var scriptCreate models.BashScriptCreate
 
@@ -972,7 +1375,19 @@ func (s *Server) handleCreateBashScript(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(script.ToResponse(true))
 }
 
-// handleGetBashScript returns a single bash script by ID
+// handleGetBashScript godoc
+// @Summary Get a bash script by ID
+// @Description Get a single bash script by its ID
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Param id path int true "Bash Script ID"
+// @Param include_content query bool false "Include script content in response" default(true)
+// @Success 200 {object} models.BashScriptResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/{id} [get]
 func (s *Server) handleGetBashScript(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -999,7 +1414,19 @@ func (s *Server) handleGetBashScript(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(script.ToResponse(includeContent))
 }
 
-// handleUpdateBashScript updates an existing bash script by ID
+// handleUpdateBashScript godoc
+// @Summary Update a bash script
+// @Description Update an existing bash script by its ID
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Param id path int true "Bash Script ID"
+// @Param script body models.BashScriptUpdate true "Bash script update data"
+// @Success 200 {object} models.BashScriptResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/{id} [put]
 func (s *Server) handleUpdateBashScript(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -1052,7 +1479,18 @@ func (s *Server) handleUpdateBashScript(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(script.ToResponse(true))
 }
 
-// handleDeleteBashScript deletes a bash script by ID
+// handleDeleteBashScript godoc
+// @Summary Delete a bash script
+// @Description Delete a bash script by its ID
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Param id path int true "Bash Script ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/{id} [delete]
 func (s *Server) handleDeleteBashScript(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -1074,7 +1512,19 @@ func (s *Server) handleDeleteBashScript(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleExecuteScript executes a stored bash script (local or remote)
+// handleExecuteScript godoc
+// @Summary Execute a bash script
+// @Description Execute a stored bash script locally or remotely
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Param execution body models.ScriptExecution true "Script execution request"
+// @Success 200 {object} models.ScriptResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/execute [post]
 func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 	var exec models.ScriptExecution
 
@@ -1241,7 +1691,16 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 
 // ========== Script Preset Handlers ==========
 
-// handleListScriptPresets returns all script presets
+// handleListScriptPresets godoc
+// @Summary List all script presets
+// @Description Get a list of all script execution presets
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.ScriptPresetResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /script-presets [get]
 func (s *Server) handleListScriptPresets(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewScriptPresetRepository(s.db)
 
@@ -1258,7 +1717,18 @@ func (s *Server) handleListScriptPresets(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(responses)
 }
 
-// handleCreateScriptPreset creates a new script preset
+// handleCreateScriptPreset godoc
+// @Summary Create a script preset
+// @Description Create a new script execution preset
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Param preset body models.ScriptPresetCreate true "Script preset to create"
+// @Success 201 {object} models.ScriptPresetResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /script-presets [post]
 func (s *Server) handleCreateScriptPreset(w http.ResponseWriter, r *http.Request) {
 	var presetCreate models.ScriptPresetCreate
 
@@ -1332,7 +1802,18 @@ func (s *Server) handleCreateScriptPreset(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(preset.ToResponse())
 }
 
-// handleGetScriptPreset returns a single script preset by ID
+// handleGetScriptPreset godoc
+// @Summary Get a script preset by ID
+// @Description Get a single script preset by its ID
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Param id path int true "Script Preset ID"
+// @Success 200 {object} models.ScriptPresetResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /script-presets/{id} [get]
 func (s *Server) handleGetScriptPreset(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -1356,7 +1837,19 @@ func (s *Server) handleGetScriptPreset(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(preset.ToResponse())
 }
 
-// handleUpdateScriptPreset updates an existing script preset by ID
+// handleUpdateScriptPreset godoc
+// @Summary Update a script preset
+// @Description Update an existing script preset by its ID
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Param id path int true "Script Preset ID"
+// @Param preset body models.ScriptPresetUpdate true "Script preset update data"
+// @Success 200 {object} models.ScriptPresetResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /script-presets/{id} [put]
 func (s *Server) handleUpdateScriptPreset(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -1429,7 +1922,18 @@ func (s *Server) handleUpdateScriptPreset(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(preset.ToResponse())
 }
 
-// handleDeleteScriptPreset deletes a script preset by ID
+// handleDeleteScriptPreset godoc
+// @Summary Delete a script preset
+// @Description Delete a script preset by its ID
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Param id path int true "Script Preset ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /script-presets/{id} [delete]
 func (s *Server) handleDeleteScriptPreset(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -1451,7 +1955,19 @@ func (s *Server) handleDeleteScriptPreset(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleGetScriptPresetsByScript returns all presets for a specific script
+// handleGetScriptPresetsByScript godoc
+// @Summary Get presets for a script
+// @Description Get all presets for a specific bash script
+// @Tags Script Presets
+// @Accept json
+// @Produce json
+// @Param id path int true "Bash Script ID"
+// @Success 200 {array} models.ScriptPresetResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/{id}/presets [get]
 func (s *Server) handleGetScriptPresetsByScript(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]

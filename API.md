@@ -17,6 +17,7 @@ Complete API reference for the Web CLI application. All endpoints return JSON re
 - [Environment Variables Management](#environment-variables-management)
 - [Bash Scripts Management](#bash-scripts-management)
 - [Script Presets Management](#script-presets-management)
+- [Interactive Terminal](#interactive-terminal-websocket)
 - [Error Responses](#error-responses)
 - [Security Considerations](#security-considerations)
 
@@ -49,6 +50,7 @@ Default port is `7777`, configurable via `-port` flag or `PORT` environment vari
 | `/local-users/{id}` | PUT | Update local user |
 | `/local-users/{id}` | DELETE | Delete local user |
 | `/system/current-user` | GET | Get current system user |
+| `/terminal/ws` | WS | Interactive terminal (WebSocket) |
 | `/commands/execute` | POST | Execute command (local/remote) |
 | `/saved-commands` | GET | List all saved commands |
 | `/saved-commands` | POST | Create saved command |
@@ -2068,6 +2070,94 @@ All API endpoints use standard HTTP status codes and return JSON error responses
   "error": "Failed to execute command"
 }
 ```
+
+---
+
+## Interactive Terminal (WebSocket)
+
+### Connect to Terminal
+
+Opens an interactive terminal session via WebSocket with full PTY support.
+
+**Endpoint:** `WS /api/terminal/ws`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `shell` | string | No | Shell to use: `bash`, `sh`, or `zsh` (default: `bash`) |
+| `sshKeyId` | integer | No | SSH key ID to inject into terminal session for SSH connections |
+
+**WebSocket URL:**
+```
+ws://localhost:7777/api/terminal/ws?shell=bash&sshKeyId=1
+```
+
+**Authentication:**
+
+WebSocket connections require the same Basic Auth credentials as regular API requests. Include credentials in the connection URL or headers.
+
+**Features:**
+
+- **SSH Key Integration**: When `sshKeyId` is provided, the SSH key is automatically available for SSH connections within the terminal
+- **Server Name Resolution**: Servers configured in Admin Panel are automatically available as SSH hostname aliases (e.g., `ssh prod-server` resolves to the configured IP/port/username)
+- **Multiple Shells**: Support for Bash, Zsh, and Sh
+- **Dynamic Resize**: Terminal dimensions can be changed dynamically
+- **256-Color Support**: Full terminal emulation with TERM=xterm-256color
+
+**Message Format:**
+
+- **Client → Server (Input):** Send raw text or binary data for terminal input
+- **Client → Server (Resize):** Send JSON: `{"type": "resize", "cols": 80, "rows": 24}`
+- **Server → Client (Output):** Binary data containing terminal output
+
+**Example (JavaScript):**
+
+```javascript
+const ws = new WebSocket('ws://localhost:7777/api/terminal/ws?shell=bash&sshKeyId=1');
+ws.binaryType = 'arraybuffer';
+
+ws.onopen = () => {
+  console.log('Connected');
+  // Send resize message
+  ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+};
+
+ws.onmessage = (event) => {
+  const text = new TextDecoder().decode(event.data);
+  console.log(text);
+};
+
+// Send input
+ws.send('ls -la\n');
+
+// SSH to a server configured in Admin Panel (using alias)
+ws.send('ssh prod-server\n');
+```
+
+**Server Alias Resolution:**
+
+When servers are configured in the Admin Panel, they become available as SSH hostname aliases:
+
+```bash
+# If Admin Panel has server "prod" with IP 10.0.0.5, port 22, user "deploy"
+ssh prod  # Automatically connects to deploy@10.0.0.5:22
+```
+
+**Connection Lifecycle:**
+
+1. Client connects via WebSocket with Basic Auth
+2. Server creates temporary session directory with SSH config and optional key
+3. Server spawns PTY with specified shell and configured environment
+4. Bidirectional data flow until either side disconnects
+5. Server cleans up PTY resources and temporary files on disconnect
+
+**Security:**
+
+- SSH keys are written to temporary files with 0600 permissions
+- Temporary session directories are cleaned up on disconnect
+- Server configs are validated to prevent SSH config injection
+- Terminal dimensions are validated (max 500x500)
 
 ---
 

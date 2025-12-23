@@ -7,7 +7,65 @@ import (
 	"github.com/pozgo/web-cli/internal/config"
 	"github.com/pozgo/web-cli/internal/database"
 	"github.com/pozgo/web-cli/internal/server"
+
+	_ "github.com/pozgo/web-cli/docs" // Swagger docs
 )
+
+// @title Web CLI API
+// @version 1.1.0
+// @description Web-based CLI tool for executing shell commands locally and remotely with SSH key management, script storage, and interactive terminal sessions.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name Web CLI Support
+// @contact.url https://github.com/pozgo/web-cli
+// @contact.email linux@ozgo.info
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:7777
+// @BasePath /api
+
+// @securityDefinitions.basic BasicAuth
+// @description Basic authentication using username and password
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer token authentication (format: "Bearer {token}")
+
+// @tag.name SSH Keys
+// @tag.description SSH private key management for remote connections
+
+// @tag.name Servers
+// @tag.description Remote server configuration management
+
+// @tag.name Commands
+// @tag.description Command execution and management
+
+// @tag.name Saved Commands
+// @tag.description Saved command templates for reuse
+
+// @tag.name Command History
+// @tag.description Command execution history
+
+// @tag.name Local Users
+// @tag.description Local system users for command execution
+
+// @tag.name Environment Variables
+// @tag.description Encrypted environment variable storage
+
+// @tag.name Bash Scripts
+// @tag.description Bash script storage and execution
+
+// @tag.name Script Presets
+// @tag.description Script execution configuration presets
+
+// @tag.name Terminal
+// @tag.description Interactive terminal WebSocket sessions
+
+// @tag.name System
+// @tag.description System information endpoints
 
 func main() {
 	// Load configuration

@@ -49,7 +49,7 @@ const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
         },
         body: JSON.stringify({
           name: name.trim(),
-          private_key: privateKey.trim(),
+          private_key: privateKey,  // Don't trim - SSH keys need their newlines preserved
         }),
       });
 

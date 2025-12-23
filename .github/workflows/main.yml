@@ -153,6 +153,7 @@ jobs:
             --exclude-dir="frontend" \
             --exclude-dir="node_modules" \
             --exclude-dir="build" \
+            --exclude-dir="docs" \
             --exclude="*.yml" \
             --exclude="*.yaml" \
             --exclude="*.md" \

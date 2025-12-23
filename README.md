@@ -34,6 +34,14 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **Theme Support**: Dark and light mode toggle with preferences saved locally
 - **Multi-Platform**: Compiled binaries for Linux x64, macOS Intel, and macOS Apple Silicon
 
+### Interactive Terminal
+- **Full Browser-Based Terminal**: Real-time terminal emulator powered by xterm.js with WebSocket backend
+- **Multiple Shell Support**: Choose between Bash, Zsh, or Sh shells
+- **SSH Key Integration**: Select SSH keys from the dropdown - automatically injected into terminal sessions
+- **Server Name Resolution**: Servers from Admin Panel automatically available as SSH hostname aliases
+- **Dynamic Resize**: Terminal automatically resizes with proper 256-color support
+- **Fullscreen Mode**: Toggle fullscreen for distraction-free terminal access
+
 ### Command Execution
 - **Local Commands**: Execute bash commands on your local server with real-time output
 - **Remote Commands**: Connect and execute commands on remote servers via SSH
@@ -83,7 +91,10 @@ A powerful web-based interface for executing commands on local and remote Linux 
 ### Backend
 - **[Go 1.21+](https://golang.org/)**: High-performance backend server
 - **[Gorilla Mux](https://github.com/gorilla/mux)**: HTTP router for API endpoints
+- **[Gorilla WebSocket](https://github.com/gorilla/websocket)**: WebSocket support for interactive terminal
+- **[creack/pty](https://github.com/creack/pty)**: PTY (pseudo-terminal) handling for terminal emulation
 - **[Viper](https://github.com/spf13/viper)**: Configuration management with env, file, and flag support
+- **[Swaggo/swag](https://github.com/swaggo/swag)**: Swagger API documentation generator
 - **[SQLite](https://www.sqlite.org/)**: Embedded database with migration support
 - **[golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh)**: SSH client with host key verification
 - **[golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)**: Secure password hashing
@@ -96,8 +107,10 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[React 18](https://react.dev/)**: Modern UI library
 - **[React Router v6](https://reactrouter.com/)**: Client-side routing
 - **[Material-UI (MUI) v5](https://mui.com/)**: Professional component library
+- **[xterm.js](https://xtermjs.org/)**: Terminal emulator for the browser
 - **[Vite](https://vitejs.dev/)**: Fast build tool and dev server
 - **[Emotion](https://emotion.sh/)**: CSS-in-JS styling
+- **[Swagger UI](https://swagger.io/tools/swagger-ui/)**: Interactive API documentation
 
 ## 📸 Screenshots
 
@@ -112,6 +125,10 @@ A powerful web-based interface for executing commands on local and remote Linux 
 ### Remote Command Execution
 ![Remote Commands](docs/images/remote-commands.png)
 *Connect to remote servers via SSH and execute commands*
+
+### Interactive Terminal
+![Interactive Terminal](docs/images/interactive-terminal.png)
+*Full browser-based terminal with SSH key integration and server aliases*
 
 ### Admin Panel - SSH Keys
 ![SSH Keys Management](docs/images/admin-ssh-keys.png)
@@ -187,6 +204,22 @@ Access the application at `http://localhost:7777`
 
 ## 📖 Usage
 
+### Interactive Terminal
+
+1. Navigate to **Interactive Terminal** from the dashboard
+2. Select your preferred shell (Bash, Zsh, or Sh)
+3. Optionally select an SSH key from the dropdown
+4. Use the terminal like a native terminal - full PTY support
+5. SSH to servers using aliases: `ssh myserver` (servers from Admin Panel)
+6. Toggle fullscreen with the fullscreen button
+
+**SSH Server Aliases:**
+When you add servers in the Admin Panel, they become available as SSH aliases in the terminal:
+```bash
+# If you added a server named "prod" with IP 10.0.0.5 and user "deploy"
+ssh prod  # Automatically connects to deploy@10.0.0.5
+```
+
 ### Local Command Execution
 
 1. Navigate to **Local Commands** from the dashboard
@@ -229,6 +262,7 @@ curl http://localhost:7777/api/health
 | Category | Endpoints | Description |
 |----------|-----------|-------------|
 | **Health** | 1 endpoint | Server health check |
+| **Terminal** | 1 WebSocket | Interactive terminal sessions |
 | **SSH Keys** | 5 endpoints | Manage SSH private keys |
 | **Servers** | 5 endpoints | Manage remote servers |
 | **Local Users** | 5 endpoints | Manage local user accounts |
@@ -240,7 +274,13 @@ curl http://localhost:7777/api/health
 | **Bash Scripts** | 6 endpoints | Manage and execute scripts |
 | **Script Presets** | 5 endpoints | Manage execution presets |
 
-**Total: 41 RESTful API endpoints**
+**Total: 43 endpoints (42 REST + 1 WebSocket)**
+
+### 📘 Swagger UI
+
+Interactive API documentation is available at `/swagger/` when the server is running.
+
+Access: `http://localhost:7777/swagger/`
 
 ### 📖 Complete Documentation
 
@@ -822,10 +862,12 @@ web-cli/
 │   ├── models/            # Data models
 │   ├── repository/        # Data access layer
 │   ├── server/            # HTTP server and handlers
+│   ├── terminal/          # Interactive terminal (PTY + WebSocket)
 │   └── validation/        # Input validation functions
 ├── frontend/              # React application
 │   ├── src/
 │   │   ├── components/    # React components
+│   │   │   └── Terminal.jsx  # xterm.js terminal component
 │   │   ├── theme/         # MUI theme configuration
 │   │   └── App.jsx        # Main app with routing
 │   └── vite.config.js     # Vite configuration

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Box, IconButton, Tooltip } from '@mui/material';
-import { Terminal } from '@mui/icons-material';
+import { Terminal, Api } from '@mui/icons-material';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
@@ -34,6 +34,18 @@ const Header = ({ mode, toggleTheme }) => {
             Web CLI
           </Typography>
         </Box>
+        <Tooltip title="API Documentation">
+          <IconButton
+            color="inherit"
+            component="a"
+            href="/swagger/"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ mr: 1 }}
+          >
+            <Api />
+          </IconButton>
+        </Tooltip>
         <Tooltip title="View on GitHub">
           <IconButton
             color="inherit"

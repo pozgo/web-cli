@@ -58,7 +58,7 @@ const EditKeyDialog = ({ open, onClose, onKeyUpdated, keyData }) => {
         },
         body: JSON.stringify({
           name: name.trim(),
-          private_key: privateKey.trim(),
+          private_key: privateKey,  // Don't trim - SSH keys need their newlines preserved
         }),
       });
 
