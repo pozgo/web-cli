@@ -70,8 +70,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Create non-root user for security
+# Add user to tty group for PTY access (required for interactive terminal)
 RUN groupadd -g 1000 webcli && \
-    useradd -u 1000 -g webcli -s /bin/bash -m webcli
+    useradd -u 1000 -g webcli -G tty -s /bin/bash -m webcli
 
 # Create data and config directories
 RUN mkdir -p /data /config && \
@@ -81,6 +82,12 @@ RUN mkdir -p /data /config && \
 RUN mkdir -p /home/webcli/.ssh && \
     chown webcli:webcli /home/webcli/.ssh && \
     chmod 700 /home/webcli/.ssh
+
+# Create tmp directory for session files (SSH configs, keys, wrappers)
+# This ensures the non-root user can create temp files for terminal sessions
+RUN mkdir -p /home/webcli/tmp && \
+    chown webcli:webcli /home/webcli/tmp && \
+    chmod 700 /home/webcli/tmp
 
 WORKDIR /app
 
@@ -102,11 +109,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 
 # Environment variables with defaults
 # Note: WEBCLI_ENCRYPTION_KEY_PATH is a file path to the key file, not the secret itself
+# TMPDIR is set to user's home for proper temp file creation in non-root context
 # hadolint ignore=DL3044
 ENV WEBCLI_PORT=7777 \
     WEBCLI_HOST=0.0.0.0 \
     WEBCLI_DATABASE_PATH=/data/web-cli.db \
     WEBCLI_ENCRYPTION_KEY_PATH=/data/.encryption_key \
+    TMPDIR=/home/webcli/tmp \
     SHELL=/bin/bash
 
 # Volume for persistent data
