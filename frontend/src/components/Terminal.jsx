@@ -37,13 +37,33 @@ const Terminal = () => {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [shell, setShell] = useState('bash');
+  const [shell, setShell] = useState('');
+  const [availableShells, setAvailableShells] = useState([]);
   const [sshKeys, setSshKeys] = useState([]);
   const [selectedSshKey, setSelectedSshKey] = useState('');
   const containerRef = useRef(null);
 
-  // Fetch SSH keys on mount
+  // Fetch available shells and SSH keys on mount
   useEffect(() => {
+    const fetchShells = async () => {
+      try {
+        const response = await fetch('/api/system/shells');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableShells(data || []);
+          // Set default shell to first available (usually bash)
+          if (data && data.length > 0) {
+            setShell(data[0].name);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch available shells:', err);
+        // Fallback to bash if fetch fails
+        setAvailableShells([{ name: 'bash', path: '/bin/bash' }]);
+        setShell('bash');
+      }
+    };
+
     const fetchSshKeys = async () => {
       try {
         const response = await fetch('/api/keys');
@@ -55,12 +75,14 @@ const Terminal = () => {
         console.error('Failed to fetch SSH keys:', err);
       }
     };
+
+    fetchShells();
     fetchSshKeys();
   }, []);
 
   // Initialize terminal
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!terminalRef.current || !shell) return;
 
     // Create xterm instance
     const xterm = new XTerm({
@@ -129,21 +151,22 @@ const Terminal = () => {
       }
       if (xtermRef.current) {
         xtermRef.current.dispose();
+        xtermRef.current = null;
       }
     };
-  }, []);
+  }, [shell]); // Re-initialize when shell changes (includes initial load)
 
-  // Handle shell or SSH key change - reconnect
+  // Handle SSH key change - reconnect without re-initializing terminal
   useEffect(() => {
-    if (xtermRef.current && wsRef.current && connected) {
+    if (xtermRef.current && wsRef.current && connected && selectedSshKey !== undefined) {
       // Close existing connection
       wsRef.current.close();
       // Clear terminal
       xtermRef.current.clear();
-      // Reconnect with new settings
+      // Reconnect with new SSH key
       connectWebSocket(xtermRef.current, fitAddonRef.current);
     }
-  }, [shell, selectedSshKey]);
+  }, [selectedSshKey]);
 
   const connectWebSocket = (xterm, fitAddon) => {
     // Build WebSocket URL with shell and optional SSH key
@@ -270,10 +293,13 @@ const Terminal = () => {
             value={shell}
             label="Shell"
             onChange={(e) => setShell(e.target.value)}
+            disabled={availableShells.length === 0}
           >
-            <MenuItem value="bash">Bash</MenuItem>
-            <MenuItem value="sh">Shell</MenuItem>
-            <MenuItem value="zsh">Zsh</MenuItem>
+            {availableShells.map((s) => (
+              <MenuItem key={s.name} value={s.name}>
+                {s.name.charAt(0).toUpperCase() + s.name.slice(1)}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 180 }}>

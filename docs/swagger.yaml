@@ -1,0 +1,1803 @@
+basePath: /api
+definitions:
+  models.BashScriptCreate:
+    properties:
+      content:
+        type: string
+      description:
+        type: string
+      filename:
+        type: string
+      name:
+        type: string
+    required:
+    - content
+    - name
+    type: object
+  models.BashScriptResponse:
+    properties:
+      content:
+        description: Only included when specifically requested
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      filename:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.BashScriptUpdate:
+    properties:
+      content:
+        type: string
+      description:
+        type: string
+      filename:
+        type: string
+      name:
+        type: string
+    type: object
+  models.CommandExecution:
+    properties:
+      command:
+        description: Command to execute
+        type: string
+      is_remote:
+        description: True if remote execution
+        type: boolean
+      save_as:
+        description: 'Optional: save as template with this name'
+        type: string
+      server_id:
+        description: Server ID for remote execution
+        type: integer
+      ssh_key_id:
+        description: SSH key ID for remote execution
+        type: integer
+      ssh_password:
+        description: SSH password (for remote, if key auth fails)
+        type: string
+      sudo_password:
+        description: Sudo password (required when user != current for local)
+        type: string
+      user:
+        description: 'User to run as (default: root)'
+        type: string
+    required:
+    - command
+    type: object
+  models.CommandHistory:
+    properties:
+      command:
+        description: Decrypted value
+        type: string
+      executed_at:
+        type: string
+      execution_time_ms:
+        type: integer
+      exit_code:
+        type: integer
+      id:
+        type: integer
+      output:
+        description: Decrypted value
+        type: string
+      server:
+        description: '"local" for local commands, or server name/IP'
+        type: string
+      user:
+        description: User who executed the command (for local commands)
+        type: string
+    type: object
+  models.CommandResult:
+    properties:
+      command:
+        type: string
+      executed_at:
+        type: string
+      execution_time_ms:
+        description: Execution time in milliseconds
+        type: integer
+      exit_code:
+        type: integer
+      output:
+        type: string
+      user:
+        type: string
+    type: object
+  models.EnvVariableCreate:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      value:
+        type: string
+    required:
+    - name
+    - value
+    type: object
+  models.EnvVariableResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+      value:
+        description: Will be masked unless explicitly requested
+        type: string
+    type: object
+  models.EnvVariableUpdate:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      value:
+        type: string
+    type: object
+  models.LocalUser:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        description: Unix username (must be valid system username)
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.LocalUserCreate:
+    properties:
+      name:
+        description: Unix username
+        type: string
+    required:
+    - name
+    type: object
+  models.LocalUserUpdate:
+    properties:
+      name:
+        description: Unix username
+        type: string
+    type: object
+  models.SSHKey:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      private_key:
+        description: Decrypted value
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.SSHKeyCreate:
+    properties:
+      name:
+        type: string
+      private_key:
+        type: string
+    required:
+    - name
+    - private_key
+    type: object
+  models.SSHKeyUpdate:
+    properties:
+      name:
+        type: string
+      private_key:
+        type: string
+    type: object
+  models.SavedCommand:
+    properties:
+      command:
+        description: The actual command to execute
+        type: string
+      created_at:
+        type: string
+      description:
+        description: Optional description
+        type: string
+      id:
+        type: integer
+      is_remote:
+        description: True if this is a remote command
+        type: boolean
+      name:
+        description: Friendly name for the command
+        type: string
+      server_id:
+        description: Foreign key to servers table (for remote commands)
+        type: integer
+      ssh_key_id:
+        description: Foreign key to ssh_keys table (for remote commands)
+        type: integer
+      updated_at:
+        type: string
+      user:
+        description: 'User to run as (default: root)'
+        type: string
+    type: object
+  models.SavedCommandCreate:
+    properties:
+      command:
+        type: string
+      description:
+        type: string
+      is_remote:
+        description: True if this is a remote command
+        type: boolean
+      name:
+        type: string
+      server_id:
+        description: For remote commands
+        type: integer
+      ssh_key_id:
+        description: For remote commands
+        type: integer
+      user:
+        description: Optional, defaults to "root"
+        type: string
+    required:
+    - command
+    - name
+    type: object
+  models.SavedCommandUpdate:
+    properties:
+      command:
+        type: string
+      description:
+        type: string
+      is_remote:
+        type: boolean
+      name:
+        type: string
+      server_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      user:
+        type: string
+    type: object
+  models.ScriptExecution:
+    properties:
+      env_var_ids:
+        description: Specific env var IDs to include
+        items:
+          type: integer
+        type: array
+      include_env_vars:
+        description: 'Deprecated: use EnvVarIDs instead'
+        type: boolean
+      is_remote:
+        description: True if remote execution
+        type: boolean
+      script_id:
+        description: ID of the script to execute
+        type: integer
+      server_id:
+        description: Server ID for remote execution
+        type: integer
+      ssh_key_id:
+        description: SSH key ID for remote execution
+        type: integer
+      ssh_password:
+        description: SSH password (for remote, if key auth fails)
+        type: string
+      sudo_password:
+        description: Sudo password (required when user != current for local)
+        type: string
+      user:
+        description: 'User to run as (default: root)'
+        type: string
+    required:
+    - script_id
+    type: object
+  models.ScriptPresetCreate:
+    properties:
+      description:
+        type: string
+      env_var_ids:
+        items:
+          type: integer
+        type: array
+      is_remote:
+        type: boolean
+      name:
+        type: string
+      script_id:
+        type: integer
+      server_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      user:
+        type: string
+    required:
+    - name
+    - script_id
+    type: object
+  models.ScriptPresetResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      env_var_ids:
+        items:
+          type: integer
+        type: array
+      id:
+        type: integer
+      is_remote:
+        type: boolean
+      name:
+        type: string
+      script_id:
+        type: integer
+      server_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      updated_at:
+        type: string
+      user:
+        type: string
+    type: object
+  models.ScriptPresetUpdate:
+    properties:
+      description:
+        type: string
+      env_var_ids:
+        items:
+          type: integer
+        type: array
+      is_remote:
+        type: boolean
+      name:
+        type: string
+      script_id:
+        type: integer
+      server_id:
+        type: integer
+      ssh_key_id:
+        type: integer
+      user:
+        type: string
+    type: object
+  models.ScriptResult:
+    properties:
+      env_vars_injected:
+        description: Number of env vars injected
+        type: integer
+      execution_time_ms:
+        description: Execution time in milliseconds
+        type: integer
+      exit_code:
+        type: integer
+      output:
+        type: string
+      script_id:
+        type: integer
+      script_name:
+        type: string
+      server:
+        description: '"local" or server name'
+        type: string
+      user:
+        type: string
+    type: object
+  models.Server:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        description: IP address
+        type: string
+      name:
+        description: Hostname (must follow hostname conventions)
+        type: string
+      port:
+        description: 'SSH port (default: 22)'
+        type: integer
+      updated_at:
+        type: string
+      username:
+        description: SSH username for remote connections
+        type: string
+    type: object
+  models.ServerCreate:
+    properties:
+      ip_address:
+        type: string
+      name:
+        type: string
+      port:
+        description: Optional, defaults to 22 if not provided
+        type: integer
+      username:
+        description: SSH username for remote connections
+        type: string
+    type: object
+  models.ServerUpdate:
+    properties:
+      ip_address:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      username:
+        type: string
+    type: object
+  server.CurrentUserResponse:
+    description: Current system user information
+    properties:
+      gid:
+        example: "0"
+        type: string
+      home_dir:
+        example: /root
+        type: string
+      name:
+        example: root
+        type: string
+      uid:
+        example: "0"
+        type: string
+      username:
+        example: root
+        type: string
+    type: object
+  server.ErrorResponse:
+    description: Error response returned by the API
+    properties:
+      error:
+        example: Invalid request body
+        type: string
+    type: object
+  server.ShellInfo:
+    description: Information about an available shell
+    properties:
+      name:
+        example: bash
+        type: string
+      path:
+        example: /bin/bash
+        type: string
+    type: object
+host: localhost:7777
+info:
+  contact:
+    email: linux@ozgo.info
+    name: Web CLI Support
+    url: https://github.com/pozgo/web-cli
+  description: Basic authentication using username and password
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Web CLI API
+  version: 1.1.0
+paths:
+  /bash-scripts:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all bash scripts (without content by default)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.BashScriptResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all bash scripts
+      tags:
+      - Bash Scripts
+    post:
+      consumes:
+      - application/json
+      description: Create a new bash script (stored encrypted)
+      parameters:
+      - description: Bash script to create
+        in: body
+        name: script
+        required: true
+        schema:
+          $ref: '#/definitions/models.BashScriptCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.BashScriptResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a bash script
+      tags:
+      - Bash Scripts
+  /bash-scripts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a bash script by its ID
+      parameters:
+      - description: Bash Script ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a bash script
+      tags:
+      - Bash Scripts
+    get:
+      consumes:
+      - application/json
+      description: Get a single bash script by its ID
+      parameters:
+      - description: Bash Script ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: true
+        description: Include script content in response
+        in: query
+        name: include_content
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BashScriptResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a bash script by ID
+      tags:
+      - Bash Scripts
+    put:
+      consumes:
+      - application/json
+      description: Update an existing bash script by its ID
+      parameters:
+      - description: Bash Script ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bash script update data
+        in: body
+        name: script
+        required: true
+        schema:
+          $ref: '#/definitions/models.BashScriptUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.BashScriptResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update a bash script
+      tags:
+      - Bash Scripts
+  /bash-scripts/{id}/presets:
+    get:
+      consumes:
+      - application/json
+      description: Get all presets for a specific bash script
+      parameters:
+      - description: Bash Script ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScriptPresetResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get presets for a script
+      tags:
+      - Script Presets
+  /bash-scripts/execute:
+    post:
+      consumes:
+      - application/json
+      description: Execute a stored bash script locally or remotely
+      parameters:
+      - description: Script execution request
+        in: body
+        name: execution
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScriptExecution'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScriptResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Execute a bash script
+      tags:
+      - Bash Scripts
+  /commands/execute:
+    post:
+      consumes:
+      - application/json
+      description: Execute a shell command locally or remotely via SSH
+      parameters:
+      - description: Command execution request
+        in: body
+        name: command
+        required: true
+        schema:
+          $ref: '#/definitions/models.CommandExecution'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CommandResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Execute a command
+      tags:
+      - Commands
+  /env-variables:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all environment variables (values masked by default)
+      parameters:
+      - description: Show actual values instead of masked values
+        in: query
+        name: show_values
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.EnvVariableResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all environment variables
+      tags:
+      - Environment Variables
+    post:
+      consumes:
+      - application/json
+      description: Create a new environment variable (stored encrypted)
+      parameters:
+      - description: Environment variable to create
+        in: body
+        name: envvar
+        required: true
+        schema:
+          $ref: '#/definitions/models.EnvVariableCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.EnvVariableResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create an environment variable
+      tags:
+      - Environment Variables
+  /env-variables/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an environment variable by its ID
+      parameters:
+      - description: Environment Variable ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete an environment variable
+      tags:
+      - Environment Variables
+    get:
+      consumes:
+      - application/json
+      description: Get a single environment variable by its ID
+      parameters:
+      - description: Environment Variable ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Show actual value instead of masked value
+        in: query
+        name: show_value
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EnvVariableResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get an environment variable by ID
+      tags:
+      - Environment Variables
+    put:
+      consumes:
+      - application/json
+      description: Update an existing environment variable by its ID
+      parameters:
+      - description: Environment Variable ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Environment variable update data
+        in: body
+        name: envvar
+        required: true
+        schema:
+          $ref: '#/definitions/models.EnvVariableUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EnvVariableResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update an environment variable
+      tags:
+      - Environment Variables
+  /history:
+    get:
+      consumes:
+      - application/json
+      description: Get command execution history with optional filtering
+      parameters:
+      - description: Filter by server name
+        in: query
+        name: server
+        type: string
+      - default: 100
+        description: Maximum number of records to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CommandHistory'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List command history
+      tags:
+      - Command History
+  /history/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a single command history entry by its ID
+      parameters:
+      - description: Command History ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CommandHistory'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a command history entry by ID
+      tags:
+      - Command History
+  /keys:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all SSH keys stored in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SSHKey'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all SSH keys
+      tags:
+      - SSH Keys
+    post:
+      consumes:
+      - application/json
+      description: Store a new SSH private key in the system
+      parameters:
+      - description: SSH Key to create
+        in: body
+        name: key
+        required: true
+        schema:
+          $ref: '#/definitions/models.SSHKeyCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SSHKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a new SSH key
+      tags:
+      - SSH Keys
+  /keys/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an SSH key by its ID
+      parameters:
+      - description: SSH Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete an SSH key
+      tags:
+      - SSH Keys
+    get:
+      consumes:
+      - application/json
+      description: Get a single SSH key by its ID
+      parameters:
+      - description: SSH Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SSHKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get an SSH key by ID
+      tags:
+      - SSH Keys
+    put:
+      consumes:
+      - application/json
+      description: Update an existing SSH key by its ID
+      parameters:
+      - description: SSH Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: SSH Key update data
+        in: body
+        name: key
+        required: true
+        schema:
+          $ref: '#/definitions/models.SSHKeyUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SSHKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update an SSH key
+      tags:
+      - SSH Keys
+  /local-users:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all local system users configured for command execution
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LocalUser'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all local users
+      tags:
+      - Local Users
+    post:
+      consumes:
+      - application/json
+      description: Add a new local system user for command execution
+      parameters:
+      - description: Local user to create
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.LocalUserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LocalUser'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a local user
+      tags:
+      - Local Users
+  /local-users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a local user by its ID
+      parameters:
+      - description: Local User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a local user
+      tags:
+      - Local Users
+    get:
+      consumes:
+      - application/json
+      description: Get a single local user by its ID
+      parameters:
+      - description: Local User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LocalUser'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a local user by ID
+      tags:
+      - Local Users
+    put:
+      consumes:
+      - application/json
+      description: Update an existing local user by its ID
+      parameters:
+      - description: Local User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Local user update data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.LocalUserUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LocalUser'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update a local user
+      tags:
+      - Local Users
+  /saved-commands:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all saved command templates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SavedCommand'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all saved commands
+      tags:
+      - Saved Commands
+    post:
+      consumes:
+      - application/json
+      description: Create a new saved command template
+      parameters:
+      - description: Saved command to create
+        in: body
+        name: command
+        required: true
+        schema:
+          $ref: '#/definitions/models.SavedCommandCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SavedCommand'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a saved command
+      tags:
+      - Saved Commands
+  /saved-commands/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a saved command template by its ID
+      parameters:
+      - description: Saved Command ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a saved command
+      tags:
+      - Saved Commands
+    get:
+      consumes:
+      - application/json
+      description: Get a single saved command template by its ID
+      parameters:
+      - description: Saved Command ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SavedCommand'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a saved command by ID
+      tags:
+      - Saved Commands
+    put:
+      consumes:
+      - application/json
+      description: Update an existing saved command template by its ID
+      parameters:
+      - description: Saved Command ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Saved command update data
+        in: body
+        name: command
+        required: true
+        schema:
+          $ref: '#/definitions/models.SavedCommandUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SavedCommand'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update a saved command
+      tags:
+      - Saved Commands
+  /script-presets:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all script execution presets
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScriptPresetResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all script presets
+      tags:
+      - Script Presets
+    post:
+      consumes:
+      - application/json
+      description: Create a new script execution preset
+      parameters:
+      - description: Script preset to create
+        in: body
+        name: preset
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScriptPresetCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ScriptPresetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a script preset
+      tags:
+      - Script Presets
+  /script-presets/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a script preset by its ID
+      parameters:
+      - description: Script Preset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a script preset
+      tags:
+      - Script Presets
+    get:
+      consumes:
+      - application/json
+      description: Get a single script preset by its ID
+      parameters:
+      - description: Script Preset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScriptPresetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a script preset by ID
+      tags:
+      - Script Presets
+    put:
+      consumes:
+      - application/json
+      description: Update an existing script preset by its ID
+      parameters:
+      - description: Script Preset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Script preset update data
+        in: body
+        name: preset
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScriptPresetUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScriptPresetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update a script preset
+      tags:
+      - Script Presets
+  /servers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all remote servers configured in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Server'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all servers
+      tags:
+      - Servers
+    post:
+      consumes:
+      - application/json
+      description: Add a new remote server configuration
+      parameters:
+      - description: Server to create
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/models.ServerCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Server'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create a new server
+      tags:
+      - Servers
+  /servers/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a server configuration by its ID
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete a server
+      tags:
+      - Servers
+    get:
+      consumes:
+      - application/json
+      description: Get a single server configuration by its ID
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Server'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get a server by ID
+      tags:
+      - Servers
+    put:
+      consumes:
+      - application/json
+      description: Update an existing server configuration by its ID
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Server update data
+        in: body
+        name: server
+        required: true
+        schema:
+          $ref: '#/definitions/models.ServerUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Server'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Update a server
+      tags:
+      - Servers
+  /system/current-user:
+    get:
+      consumes:
+      - application/json
+      description: Get information about the current system user running the server
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.CurrentUserResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get current system user
+      tags:
+      - System
+  /system/shells:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of shells that are installed and available on the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/server.ShellInfo'
+            type: array
+      security:
+      - BasicAuth: []
+      summary: List available shells
+      tags:
+      - System
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  BearerAuth:
+    description: 'Bearer token authentication (format: "Bearer {token}")'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+tags:
+- description: SSH private key management for remote connections
+  name: SSH Keys
+- description: Remote server configuration management
+  name: Servers
+- description: Command execution and management
+  name: Commands
+- description: Saved command templates for reuse
+  name: Saved Commands
+- description: Command execution history
+  name: Command History
+- description: Local system users for command execution
+  name: Local Users
+- description: Encrypted environment variable storage
+  name: Environment Variables
+- description: Bash script storage and execution
+  name: Bash Scripts
+- description: Script execution configuration presets
+  name: Script Presets
+- description: Interactive terminal WebSocket sessions
+  name: Terminal
+- description: System information endpoints
+  name: System

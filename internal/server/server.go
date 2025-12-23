@@ -15,6 +15,7 @@ import (
 	"github.com/pozgo/web-cli/internal/database"
 	"github.com/pozgo/web-cli/internal/middleware"
 	"github.com/rs/cors"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // EmbeddedFrontend holds the embedded frontend files
@@ -91,6 +92,7 @@ func (s *Server) setupRoutes() {
 
 	// System info endpoints
 	api.HandleFunc("/system/current-user", s.handleGetCurrentUser).Methods("GET")
+	api.HandleFunc("/system/shells", s.handleListAvailableShells).Methods("GET")
 
 	// Environment variables endpoints
 	api.HandleFunc("/env-variables", s.handleListEnvVariables).Methods("GET")
@@ -117,6 +119,14 @@ func (s *Server) setupRoutes() {
 
 	// Terminal WebSocket endpoint (for interactive shell)
 	api.HandleFunc("/terminal/ws", s.handleTerminalWebSocket)
+
+	// Swagger documentation endpoint (with redirect from /swagger to /swagger/index.html)
+	s.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("swagger-ui"),
+	))
 
 	// Log auth status
 	if authConfig.Enabled {

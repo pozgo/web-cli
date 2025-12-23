@@ -94,6 +94,7 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[Gorilla WebSocket](https://github.com/gorilla/websocket)**: WebSocket support for interactive terminal
 - **[creack/pty](https://github.com/creack/pty)**: PTY (pseudo-terminal) handling for terminal emulation
 - **[Viper](https://github.com/spf13/viper)**: Configuration management with env, file, and flag support
+- **[Swaggo/swag](https://github.com/swaggo/swag)**: Swagger API documentation generator
 - **[SQLite](https://www.sqlite.org/)**: Embedded database with migration support
 - **[golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh)**: SSH client with host key verification
 - **[golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)**: Secure password hashing
@@ -109,6 +110,7 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[xterm.js](https://xtermjs.org/)**: Terminal emulator for the browser
 - **[Vite](https://vitejs.dev/)**: Fast build tool and dev server
 - **[Emotion](https://emotion.sh/)**: CSS-in-JS styling
+- **[Swagger UI](https://swagger.io/tools/swagger-ui/)**: Interactive API documentation
 
 ## 📸 Screenshots
 
@@ -272,7 +274,13 @@ curl http://localhost:7777/api/health
 | **Bash Scripts** | 6 endpoints | Manage and execute scripts |
 | **Script Presets** | 5 endpoints | Manage execution presets |
 
-**Total: 42 endpoints (41 REST + 1 WebSocket)**
+**Total: 43 endpoints (42 REST + 1 WebSocket)**
+
+### 📘 Swagger UI
+
+Interactive API documentation is available at `/swagger/` when the server is running.
+
+Access: `http://localhost:7777/swagger/`
 
 ### 📖 Complete Documentation
 
