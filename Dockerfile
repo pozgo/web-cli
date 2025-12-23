@@ -33,6 +33,7 @@ RUN go mod download
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY assets/ ./assets/
+COPY docs/ ./docs/
 
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./assets/frontend/
@@ -100,6 +101,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -sf http://localhost:7777/api/health || exit 1
 
 # Environment variables with defaults
+# Note: WEBCLI_ENCRYPTION_KEY_PATH is a file path to the key file, not the secret itself
+# hadolint ignore=DL3044
 ENV WEBCLI_PORT=7777 \
     WEBCLI_HOST=0.0.0.0 \
     WEBCLI_DATABASE_PATH=/data/web-cli.db \
