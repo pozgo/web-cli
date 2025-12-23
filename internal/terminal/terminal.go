@@ -159,7 +159,7 @@ func NewSession(ws *websocket.Conn, shell string, sshPrivateKey string, servers 
 
 		// Create SSH wrapper script that uses our custom config and optionally the key
 		wrapperPath := filepath.Join(tmpDir, "ssh")
-		wrapperContent := generateSSHWrapper(tmpDir, sshKeyPath)
+		wrapperContent := generateSSHWrapper(tmpDir, sshKeyPath, len(servers) > 0)
 		if err := os.WriteFile(wrapperPath, []byte(wrapperContent), 0755); err != nil {
 			os.RemoveAll(tmpDir)
 			return nil, fmt.Errorf("failed to write SSH wrapper: %w", err)
@@ -367,17 +367,18 @@ func generateSSHConfig(configPath string, servers []ServerConfig) error {
 }
 
 // generateSSHWrapper creates an SSH wrapper script that uses our custom config and optional key
-func generateSSHWrapper(tmpDir string, sshKeyPath string) string {
-	configPath := filepath.Join(tmpDir, "config")
-
+func generateSSHWrapper(tmpDir string, sshKeyPath string, hasServers bool) string {
 	var wrapper strings.Builder
 	wrapper.WriteString("#!/bin/sh\n")
 
 	// Build SSH command with options
 	wrapper.WriteString("exec /usr/bin/ssh")
 
-	// Always use our custom config file
-	wrapper.WriteString(fmt.Sprintf(" -F \"%s\"", configPath))
+	// Only use custom config file if we have server configs
+	if hasServers {
+		configPath := filepath.Join(tmpDir, "config")
+		wrapper.WriteString(fmt.Sprintf(" -F \"%s\"", configPath))
+	}
 
 	// Add identity file if provided
 	if sshKeyPath != "" {
