@@ -16,6 +16,7 @@ import {
   Code,
   PlayArrow,
   CloudQueue,
+  Computer,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -71,13 +72,20 @@ const Dashboard = () => {
       action: 'Open Admin',
       onClick: () => navigate('/admin'),
     },
-    // Row 4: History
+    // Row 4: History and Terminal
     {
       icon: <Storage sx={{ fontSize: 48 }} />,
       title: 'Command History',
       description: 'View and replay previously executed commands',
       action: 'View History',
       onClick: () => navigate('/history'),
+    },
+    {
+      icon: <Computer sx={{ fontSize: 48 }} />,
+      title: 'Interactive Terminal',
+      description: 'Open a full interactive shell session in your browser',
+      action: 'Open Terminal',
+      onClick: () => navigate('/terminal'),
     },
   ];
 

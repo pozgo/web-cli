@@ -115,6 +115,9 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/script-presets/{id}", s.handleUpdateScriptPreset).Methods("PUT")
 	api.HandleFunc("/script-presets/{id}", s.handleDeleteScriptPreset).Methods("DELETE")
 
+	// Terminal WebSocket endpoint (for interactive shell)
+	api.HandleFunc("/terminal/ws", s.handleTerminalWebSocket)
+
 	// Log auth status
 	if authConfig.Enabled {
 		log.Println("Authentication is ENABLED for entire application (frontend + API)")

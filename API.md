@@ -17,6 +17,7 @@ Complete API reference for the Web CLI application. All endpoints return JSON re
 - [Environment Variables Management](#environment-variables-management)
 - [Bash Scripts Management](#bash-scripts-management)
 - [Script Presets Management](#script-presets-management)
+- [Interactive Terminal](#interactive-terminal-websocket)
 - [Error Responses](#error-responses)
 - [Security Considerations](#security-considerations)
 
@@ -49,6 +50,7 @@ Default port is `7777`, configurable via `-port` flag or `PORT` environment vari
 | `/local-users/{id}` | PUT | Update local user |
 | `/local-users/{id}` | DELETE | Delete local user |
 | `/system/current-user` | GET | Get current system user |
+| `/terminal/ws` | WS | Interactive terminal (WebSocket) |
 | `/commands/execute` | POST | Execute command (local/remote) |
 | `/saved-commands` | GET | List all saved commands |
 | `/saved-commands` | POST | Create saved command |
@@ -2068,6 +2070,65 @@ All API endpoints use standard HTTP status codes and return JSON error responses
   "error": "Failed to execute command"
 }
 ```
+
+---
+
+## Interactive Terminal (WebSocket)
+
+### Connect to Terminal
+
+Opens an interactive terminal session via WebSocket.
+
+**Endpoint:** `WS /api/terminal/ws`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `shell` | string | No | Shell to use: `bash`, `sh`, or `zsh` (default: `bash`) |
+
+**WebSocket URL:**
+```
+ws://localhost:7777/api/terminal/ws?shell=bash
+```
+
+**Authentication:**
+
+WebSocket connections require the same Basic Auth credentials as regular API requests. Include credentials in the connection URL or headers.
+
+**Message Format:**
+
+- **Client → Server (Input):** Send raw text or binary data for terminal input
+- **Client → Server (Resize):** Send JSON: `{"type": "resize", "cols": 80, "rows": 24}`
+- **Server → Client (Output):** Binary data containing terminal output
+
+**Example (JavaScript):**
+
+```javascript
+const ws = new WebSocket('ws://localhost:7777/api/terminal/ws?shell=bash');
+ws.binaryType = 'arraybuffer';
+
+ws.onopen = () => {
+  console.log('Connected');
+  // Send resize message
+  ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+};
+
+ws.onmessage = (event) => {
+  const text = new TextDecoder().decode(event.data);
+  console.log(text);
+};
+
+// Send input
+ws.send('ls -la\n');
+```
+
+**Connection Lifecycle:**
+
+1. Client connects via WebSocket with Basic Auth
+2. Server spawns PTY with specified shell
+3. Bidirectional data flow until either side disconnects
+4. Server cleans up PTY resources on disconnect
 
 ---
 

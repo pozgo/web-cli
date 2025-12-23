@@ -61,6 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     tzdata \
     bash \
+    zsh \
     coreutils \
     curl \
     openssh-client \

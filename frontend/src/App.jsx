@@ -12,6 +12,7 @@ import CommandHistory from './components/CommandHistory';
 import ScriptsPage from './components/ScriptsPage';
 import LocalScripts from './components/LocalScripts';
 import RemoteScripts from './components/RemoteScripts';
+import Terminal from './components/Terminal';
 
 /**
  * Main App component - handles theme management and renders the application with routing
@@ -51,6 +52,7 @@ function App() {
           <Route path="/scripts" element={<ScriptsPage />} />
           <Route path="/local-scripts" element={<LocalScripts />} />
           <Route path="/remote-scripts" element={<RemoteScripts />} />
+          <Route path="/terminal" element={<Terminal />} />
         </Routes>
       </ThemeProvider>
     </BrowserRouter>
