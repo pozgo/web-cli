@@ -31,7 +31,6 @@ type ServerConfig struct {
 	Username  string
 }
 
-
 // Validation constants
 const (
 	maxTerminalRows = 500
