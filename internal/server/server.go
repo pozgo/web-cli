@@ -108,6 +108,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bash-scripts/{id}", s.handleUpdateBashScript).Methods("PUT")
 	api.HandleFunc("/bash-scripts/{id}", s.handleDeleteBashScript).Methods("DELETE")
 	api.HandleFunc("/bash-scripts/execute", s.handleExecuteScript).Methods("POST")
+	api.HandleFunc("/bash-scripts/execute/stream", s.handleExecuteScriptStream).Methods("POST")
 	api.HandleFunc("/bash-scripts/{id}/presets", s.handleGetScriptPresetsByScript).Methods("GET")
 
 	// Script preset endpoints
@@ -275,11 +276,13 @@ func (s *Server) Start() error {
 	log.Printf("CORS allowed origins: %v", allowedOrigins)
 
 	// Create HTTP server with proper timeouts
+	// WriteTimeout is set high to support long-running script streaming (SSE)
+	// Individual handlers can implement their own timeouts via context
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 10 * time.Minute, // Allow long-running script streams
 		IdleTimeout:  60 * time.Second,
 	}
 

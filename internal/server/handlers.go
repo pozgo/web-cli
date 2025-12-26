@@ -1689,6 +1689,268 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// StreamMessage represents a message sent via SSE
+type StreamMessage struct {
+	Type   string               `json:"type"`             // "output", "result", "error"
+	Data   string               `json:"data"`             // output chunk or error message
+	Result *models.ScriptResult `json:"result,omitempty"` // final result
+}
+
+// handleExecuteScriptStream godoc
+// @Summary Execute a bash script with streaming output
+// @Description Execute a stored bash script locally or remotely with real-time output streaming via SSE
+// @Tags Bash Scripts
+// @Accept json
+// @Produce text/event-stream
+// @Param execution body models.ScriptExecution true "Script execution request"
+// @Success 200 {object} StreamMessage
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/execute/stream [post]
+func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Request) {
+	var exec models.ScriptExecution
+
+	if err := json.NewDecoder(r.Body).Decode(&exec); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if exec.ScriptID == 0 {
+		http.Error(w, "Script ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate and default user
+	if exec.User == "" {
+		exec.User = "root"
+	} else if err := validation.ValidateUsername(exec.User); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid user: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Fetch the script
+	scriptRepo := repository.NewBashScriptRepository(s.db)
+	script, err := scriptRepo.GetByID(exec.ScriptID)
+	if err != nil {
+		log.Printf("Error fetching script: %v", err)
+		http.Error(w, "Script not found", http.StatusNotFound)
+		return
+	}
+
+	// Build the script content with optional env vars
+	var scriptContent strings.Builder
+	envVarsCount := 0
+
+	// Determine which env vars to include
+	envRepo := repository.NewEnvVariableRepository(s.db)
+
+	if len(exec.EnvVarIDs) > 0 {
+		for _, envVarID := range exec.EnvVarIDs {
+			envVar, err := envRepo.GetByID(envVarID)
+			if err != nil {
+				log.Printf("Warning: env variable ID %d not found: %v", envVarID, err)
+				continue
+			}
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+	} else if exec.IncludeEnvVars {
+		envVars, err := envRepo.GetAll()
+		if err != nil {
+			log.Printf("Error fetching environment variables: %v", err)
+			http.Error(w, "Failed to fetch environment variables", http.StatusInternalServerError)
+			return
+		}
+		for _, envVar := range envVars {
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+	}
+
+	scriptContent.WriteString(script.Content)
+	finalScript := scriptContent.String()
+
+	serverName := "local"
+
+	// Set up SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Send initial message
+	sendSSE(w, flusher, "status", "Starting script execution...")
+
+	ctx := r.Context()
+
+	if exec.IsRemote {
+		// Remote execution via SSH with streaming
+		if exec.ServerID == nil {
+			sendSSE(w, flusher, "error", "Server ID is required for remote execution")
+			return
+		}
+
+		serverRepo := repository.NewServerRepository(s.db)
+		server, err := serverRepo.GetByID(*exec.ServerID)
+		if err != nil {
+			log.Printf("Error fetching server: %v", err)
+			sendSSE(w, flusher, "error", "Server not found")
+			return
+		}
+
+		var privateKey string
+		if exec.SSHKeyID != nil {
+			keyRepo := repository.NewSSHKeyRepository(s.db)
+			key, err := keyRepo.GetByID(*exec.SSHKeyID)
+			if err != nil {
+				log.Printf("Error fetching SSH key: %v", err)
+				sendSSE(w, flusher, "error", "SSH key not found")
+				return
+			}
+			privateKey = key.PrivateKey
+		}
+
+		if server.Name != "" {
+			serverName = server.Name
+		} else if server.IPAddress != "" {
+			serverName = server.IPAddress
+		}
+
+		sendSSE(w, flusher, "status", fmt.Sprintf("Connecting to %s...", serverName))
+
+		// Execute with streaming
+		remoteExec := executor.NewRemoteExecutorWithHostKeys("", true)
+		sshConfig := &executor.SSHConfig{
+			Host:       server.IPAddress,
+			Port:       server.Port,
+			Username:   exec.User,
+			PrivateKey: privateKey,
+			Password:   exec.SSHPassword,
+		}
+
+		outputChan, resultChan := remoteExec.ExecuteWithStreaming(ctx, finalScript, sshConfig)
+
+		// Stream output
+		var fullOutput strings.Builder
+		for chunk := range outputChan {
+			fullOutput.WriteString(chunk)
+			sendSSE(w, flusher, "output", chunk)
+		}
+
+		// Get final result
+		result := <-resultChan
+
+		// Save to history
+		exitCode := result.ExitCode
+		historyRepo := repository.NewCommandHistoryRepository(s.db)
+		_, err = historyRepo.Create(&models.CommandHistoryCreate{
+			Command:         fmt.Sprintf("[Script: %s] %s", script.Name, script.Content[:min(100, len(script.Content))]),
+			Output:          result.Output,
+			ExitCode:        &exitCode,
+			Server:          serverName,
+			User:            exec.User,
+			ExecutionTimeMs: result.ExecutionTime,
+		})
+		if err != nil {
+			log.Printf("Warning: failed to save command history: %v", err)
+		}
+
+		// Send final result
+		scriptResult := models.ScriptResult{
+			ScriptID:      script.ID,
+			ScriptName:    script.Name,
+			Output:        result.Output,
+			ExitCode:      result.ExitCode,
+			User:          exec.User,
+			Server:        serverName,
+			ExecutionTime: result.ExecutionTime,
+			EnvVarsCount:  envVarsCount,
+		}
+		sendSSEResult(w, flusher, &scriptResult)
+
+	} else {
+		// Local execution with streaming
+		localExec := executor.NewLocalExecutor()
+		outputChan, resultChan := localExec.ExecuteWithStreaming(ctx, finalScript, exec.User, exec.SudoPassword)
+
+		// Stream output
+		var fullOutput strings.Builder
+		for chunk := range outputChan {
+			fullOutput.WriteString(chunk)
+			sendSSE(w, flusher, "output", chunk)
+		}
+
+		// Get final result
+		result := <-resultChan
+
+		// Save to history
+		exitCode := result.ExitCode
+		historyRepo := repository.NewCommandHistoryRepository(s.db)
+		_, err = historyRepo.Create(&models.CommandHistoryCreate{
+			Command:         fmt.Sprintf("[Script: %s] %s", script.Name, script.Content[:min(100, len(script.Content))]),
+			Output:          result.Output,
+			ExitCode:        &exitCode,
+			Server:          serverName,
+			User:            exec.User,
+			ExecutionTimeMs: result.ExecutionTime,
+		})
+		if err != nil {
+			log.Printf("Warning: failed to save command history: %v", err)
+		}
+
+		// Send final result
+		scriptOutput := result.Output
+		if result.Error != nil && scriptOutput == "" {
+			scriptOutput = fmt.Sprintf("Error: %s", result.Error.Error())
+		}
+
+		scriptResult := models.ScriptResult{
+			ScriptID:      script.ID,
+			ScriptName:    script.Name,
+			Output:        scriptOutput,
+			ExitCode:      result.ExitCode,
+			User:          exec.User,
+			Server:        serverName,
+			ExecutionTime: result.ExecutionTime,
+			EnvVarsCount:  envVarsCount,
+		}
+		sendSSEResult(w, flusher, &scriptResult)
+	}
+}
+
+// sendSSE sends a Server-Sent Event message
+func sendSSE(w http.ResponseWriter, flusher http.Flusher, eventType, data string) {
+	msg := StreamMessage{
+		Type: eventType,
+		Data: data,
+	}
+	jsonData, _ := json.Marshal(msg)
+	fmt.Fprintf(w, "data: %s\n\n", jsonData)
+	flusher.Flush()
+}
+
+// sendSSEResult sends the final result via SSE
+func sendSSEResult(w http.ResponseWriter, flusher http.Flusher, result *models.ScriptResult) {
+	msg := StreamMessage{
+		Type:   "result",
+		Result: result,
+	}
+	jsonData, _ := json.Marshal(msg)
+	fmt.Fprintf(w, "data: %s\n\n", jsonData)
+	flusher.Flush()
+}
+
 // ========== Script Preset Handlers ==========
 
 // handleListScriptPresets godoc
