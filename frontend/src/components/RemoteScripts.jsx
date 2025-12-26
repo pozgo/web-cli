@@ -317,28 +317,28 @@ const RemoteScripts = () => {
     setPasswordDialogOpen(true);
   };
 
-  // Actually execute the script
+  // Actually execute the script with streaming output
   const executeScript = async (password) => {
     setLoading(true);
     setError(null);
     setSuccess(null);
     setOutput('');
 
+    const payload = {
+      script_id: parseInt(selectedScriptId, 10),
+      user: user || 'root',
+      is_remote: true,
+      server_id: parseInt(selectedServer, 10),
+      ssh_key_id: parseInt(selectedSSHKey, 10),
+      env_var_ids: selectedEnvVarIds,
+    };
+
+    if (password) {
+      payload.ssh_password = password;
+    }
+
     try {
-      const payload = {
-        script_id: parseInt(selectedScriptId, 10),
-        user: user || 'root',
-        is_remote: true,
-        server_id: parseInt(selectedServer, 10),
-        ssh_key_id: parseInt(selectedSSHKey, 10),
-        env_var_ids: selectedEnvVarIds,
-      };
-
-      if (password) {
-        payload.ssh_password = password;
-      }
-
-      const response = await fetch('/api/bash-scripts/execute', {
+      const response = await fetch('/api/bash-scripts/execute/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -351,17 +351,62 @@ const RemoteScripts = () => {
         throw new Error(errorText || 'Failed to execute script');
       }
 
-      const result = await response.json();
-      setOutput(result.output || '(no output)');
+      // Read the SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let streamedOutput = '';
 
-      if (result.exit_code === 0) {
-        let msg = `Script executed successfully on ${result.server} in ${result.execution_time_ms}ms`;
-        if (result.env_vars_injected > 0) {
-          msg += ` (${result.env_vars_injected} env vars injected)`;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'output') {
+                streamedOutput += data.data;
+                setOutput(streamedOutput);
+              } else if (data.type === 'status') {
+                // Status messages can be shown as temporary info
+                console.log('Status:', data.data);
+              } else if (data.type === 'error') {
+                setError(data.data);
+              } else if (data.type === 'result') {
+                // Final result received
+                const result = data.result;
+                if (result.exit_code === 0) {
+                  let msg = `Script executed successfully on ${result.server} in ${result.execution_time_ms}ms`;
+                  if (result.env_vars_count > 0) {
+                    msg += ` (${result.env_vars_count} env vars injected)`;
+                  }
+                  setSuccess(msg);
+                } else {
+                  setError(`Script exited with code ${result.exit_code} on ${result.server}`);
+                }
+                // Use final output from result if we didn't stream anything
+                if (!streamedOutput && result.output) {
+                  setOutput(result.output);
+                }
+              }
+            } catch (parseErr) {
+              console.error('Failed to parse SSE message:', parseErr);
+            }
+          }
         }
-        setSuccess(msg);
-      } else {
-        setError(`Script exited with code ${result.exit_code} on ${result.server}`);
+      }
+
+      // If no output was streamed, show a placeholder
+      if (!streamedOutput) {
+        setOutput(prev => prev || '(no output)');
       }
     } catch (err) {
       setError(err.message);
