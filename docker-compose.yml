@@ -107,7 +107,7 @@ services:
       - no-new-privileges:true
 
     # Read-only root filesystem (data is in /data volume)
-    read_only: true
+    read_only: false
 
     # Temporary filesystem for runtime needs
     tmpfs:

@@ -126,6 +126,10 @@ A powerful web-based interface for executing commands on local and remote Linux 
 ![Remote Commands](docs/images/remote-commands.png)
 *Connect to remote servers via SSH and execute commands*
 
+### Remote Script Execution
+![Remote Commands](docs/images/remote-script.png)
+*Connect to remote servers via SSH and execute script*
+
 ### Interactive Terminal
 ![Interactive Terminal](docs/images/interactive-terminal.png)
 *Full browser-based terminal with SSH key integration and server aliases*
