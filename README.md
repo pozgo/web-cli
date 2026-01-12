@@ -4,6 +4,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)](https://react.dev)
 [![Material-UI](https://img.shields.io/badge/Material--UI-5-007FFF?style=flat&logo=mui)](https://mui.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docker Pulls](https://img.shields.io/docker/pulls/polinux/web-cli?style=flat&logo=docker)](https://hub.docker.com/r/polinux/web-cli)
 
 A powerful web-based interface for executing commands on local and remote Linux servers. Built with Go and React with Material-UI for a professional, modern user experience.
 
@@ -692,12 +693,48 @@ curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 Web CLI is available as a Docker image for easy deployment.
 
 **Image Details:**
-- **Registry:** Docker Hub (`polinux/web-cli`)
+- **Registry:** Docker Hub ([`polinux/web-cli`](https://hub.docker.com/r/polinux/web-cli))
 - **Base Image:** Debian Bookworm (slim) - provides full bash support for script execution
 - **Platforms:** `linux/amd64`, `linux/arm64`
 - **Size:** ~100MB compressed
+- **Tags:** `latest`, `dev`, `main`, version tags (e.g., `v0.2.3`)
 
-**Quick Start with Docker Compose:**
+**Quick Start - Standalone Docker Compose:**
+
+Create a `docker-compose.yml` file anywhere on your system:
+
+```yaml
+services:
+  web-cli:
+    image: polinux/web-cli:latest
+    container_name: web-cli
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      - web-cli-data:/data
+    environment:
+      - AUTH_ENABLED=true
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=changeme123
+
+volumes:
+  web-cli-data:
+```
+
+Then run:
+
+```bash
+# Start the container
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Access at http://localhost:7777
+```
+
+**Quick Start with Repository:**
 
 ```bash
 # Clone the repository
