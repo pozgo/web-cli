@@ -4,6 +4,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)](https://react.dev)
 [![Material-UI](https://img.shields.io/badge/Material--UI-5-007FFF?style=flat&logo=mui)](https://mui.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docker Pulls](https://img.shields.io/docker/pulls/polinux/web-cli?style=flat&logo=docker)](https://hub.docker.com/r/polinux/web-cli)
 
 A powerful web-based interface for executing commands on local and remote Linux servers. Built with Go and React with Material-UI for a professional, modern user experience.
 
@@ -71,6 +72,13 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **Script Presets**: Save execution configurations (server, SSH key, user, env vars)
 - **Environment Integration**: Inject stored environment variables into scripts
 
+### Developer Tools
+- **YAML Validator**: Validate, format, and auto-fix YAML documents with Monaco Editor
+- **JSON Validator**: Validate, format, and auto-fix JSON data with Monaco Editor
+- **Auto-Fix**: Automatic repair of common issues (tabs, indentation, trailing commas, etc.)
+- **Diff View**: Side-by-side comparison showing exactly what was changed by auto-fix
+- **Syntax Highlighting**: Full VS Code-style editing experience
+
 ### Security
 - **Authentication**: HTTP Basic Auth and Bearer token support (configurable)
 - **TLS/HTTPS Support**: Native TLS support with optional HTTPS enforcement
@@ -108,9 +116,12 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[React Router v6](https://reactrouter.com/)**: Client-side routing
 - **[Material-UI (MUI) v5](https://mui.com/)**: Professional component library
 - **[xterm.js](https://xtermjs.org/)**: Terminal emulator for the browser
+- **[Monaco Editor](https://microsoft.github.io/monaco-editor/)**: VS Code editor for YAML/JSON tools
 - **[Vite](https://vitejs.dev/)**: Fast build tool and dev server
 - **[Emotion](https://emotion.sh/)**: CSS-in-JS styling
 - **[Swagger UI](https://swagger.io/tools/swagger-ui/)**: Interactive API documentation
+- **[js-yaml](https://github.com/nodeca/js-yaml)**: YAML parsing and formatting
+- **[jsonrepair](https://github.com/josdejong/jsonrepair)**: JSON auto-fix and repair
 
 ## 📸 Screenshots
 
@@ -682,12 +693,48 @@ curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 Web CLI is available as a Docker image for easy deployment.
 
 **Image Details:**
-- **Registry:** Docker Hub (`polinux/web-cli`)
+- **Registry:** Docker Hub ([`polinux/web-cli`](https://hub.docker.com/r/polinux/web-cli))
 - **Base Image:** Debian Bookworm (slim) - provides full bash support for script execution
 - **Platforms:** `linux/amd64`, `linux/arm64`
 - **Size:** ~100MB compressed
+- **Tags:** `latest`, `dev`, `main`, version tags (e.g., `v0.2.3`)
 
-**Quick Start with Docker Compose:**
+**Quick Start - Standalone Docker Compose:**
+
+Create a `docker-compose.yml` file anywhere on your system:
+
+```yaml
+services:
+  web-cli:
+    image: polinux/web-cli:latest
+    container_name: web-cli
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      - web-cli-data:/data
+    environment:
+      - AUTH_ENABLED=true
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=changeme123
+
+volumes:
+  web-cli-data:
+```
+
+Then run:
+
+```bash
+# Start the container
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Access at http://localhost:7777
+```
+
+**Quick Start with Repository:**
 
 ```bash
 # Clone the repository

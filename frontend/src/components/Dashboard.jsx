@@ -17,6 +17,7 @@ import {
   PlayArrow,
   CloudQueue,
   Computer,
+  Build,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -86,6 +87,14 @@ const Dashboard = () => {
       description: 'Open a full interactive shell session in your browser',
       action: 'Open Terminal',
       onClick: () => navigate('/terminal'),
+    },
+    // Row 5: Developer Tools
+    {
+      icon: <Build sx={{ fontSize: 48 }} />,
+      title: 'Tools',
+      description: 'Validate and format YAML, JSON, and other data formats',
+      action: 'Open Tools',
+      onClick: () => navigate('/tools'),
     },
   ];
 
