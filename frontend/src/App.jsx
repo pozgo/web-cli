@@ -13,6 +13,9 @@ import ScriptsPage from './components/ScriptsPage';
 import LocalScripts from './components/LocalScripts';
 import RemoteScripts from './components/RemoteScripts';
 import Terminal from './components/Terminal';
+import ToolsPage from './components/ToolsPage';
+import YamlValidator from './components/YamlValidator';
+import JsonValidator from './components/JsonValidator';
 
 /**
  * Main App component - handles theme management and renders the application with routing
@@ -53,6 +56,9 @@ function App() {
           <Route path="/local-scripts" element={<LocalScripts />} />
           <Route path="/remote-scripts" element={<RemoteScripts />} />
           <Route path="/terminal" element={<Terminal />} />
+          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/tools/yaml" element={<YamlValidator />} />
+          <Route path="/tools/json" element={<JsonValidator />} />
         </Routes>
       </ThemeProvider>
     </BrowserRouter>

@@ -71,6 +71,13 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **Script Presets**: Save execution configurations (server, SSH key, user, env vars)
 - **Environment Integration**: Inject stored environment variables into scripts
 
+### Developer Tools
+- **YAML Validator**: Validate, format, and auto-fix YAML documents with Monaco Editor
+- **JSON Validator**: Validate, format, and auto-fix JSON data with Monaco Editor
+- **Auto-Fix**: Automatic repair of common issues (tabs, indentation, trailing commas, etc.)
+- **Diff View**: Side-by-side comparison showing exactly what was changed by auto-fix
+- **Syntax Highlighting**: Full VS Code-style editing experience
+
 ### Security
 - **Authentication**: HTTP Basic Auth and Bearer token support (configurable)
 - **TLS/HTTPS Support**: Native TLS support with optional HTTPS enforcement
@@ -108,9 +115,12 @@ A powerful web-based interface for executing commands on local and remote Linux 
 - **[React Router v6](https://reactrouter.com/)**: Client-side routing
 - **[Material-UI (MUI) v5](https://mui.com/)**: Professional component library
 - **[xterm.js](https://xtermjs.org/)**: Terminal emulator for the browser
+- **[Monaco Editor](https://microsoft.github.io/monaco-editor/)**: VS Code editor for YAML/JSON tools
 - **[Vite](https://vitejs.dev/)**: Fast build tool and dev server
 - **[Emotion](https://emotion.sh/)**: CSS-in-JS styling
 - **[Swagger UI](https://swagger.io/tools/swagger-ui/)**: Interactive API documentation
+- **[js-yaml](https://github.com/nodeca/js-yaml)**: YAML parsing and formatting
+- **[jsonrepair](https://github.com/josdejong/jsonrepair)**: JSON auto-fix and repair
 
 ## 📸 Screenshots
 
