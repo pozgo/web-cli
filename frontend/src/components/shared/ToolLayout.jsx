@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { memo } from 'react';
+import PropTypes from 'prop-types';
 import { Container, Box, Typography, Button } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
  * ToolLayout - Common page layout wrapper for tool pages
  * Provides consistent styling with back button, title, and description
  */
-const ToolLayout = ({ title, description, backPath = '/tools', children }) => {
+const ToolLayout = memo(({ title, description, backPath = '/tools', children }) => {
   const navigate = useNavigate();
 
   return (
@@ -17,6 +18,7 @@ const ToolLayout = ({ title, description, backPath = '/tools', children }) => {
           startIcon={<ArrowBack />}
           onClick={() => navigate(backPath)}
           sx={{ mb: 2 }}
+          aria-label="Navigate back to tools page"
         >
           Back to Tools
         </Button>
@@ -32,6 +34,15 @@ const ToolLayout = ({ title, description, backPath = '/tools', children }) => {
       </Box>
     </Container>
   );
+});
+
+ToolLayout.displayName = 'ToolLayout';
+
+ToolLayout.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string,
+  backPath: PropTypes.string,
+  children: PropTypes.node.isRequired,
 };
 
 export default ToolLayout;

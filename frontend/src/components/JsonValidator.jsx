@@ -284,6 +284,7 @@ const JsonValidator = () => {
                 color="primary"
                 startIcon={<CheckCircle />}
                 onClick={handleValidate}
+                aria-label="Validate JSON syntax"
               >
                 Validate
               </Button>
@@ -291,12 +292,14 @@ const JsonValidator = () => {
                 variant="outlined"
                 startIcon={<FormatAlignLeft />}
                 onClick={handleFormat}
+                aria-label="Format and beautify JSON"
               >
                 Format
               </Button>
               <Button
                 variant="outlined"
                 onClick={handleMinify}
+                aria-label="Minify JSON to single line"
               >
                 Minify
               </Button>
@@ -304,6 +307,7 @@ const JsonValidator = () => {
                 variant="outlined"
                 startIcon={<AutoFixHigh />}
                 onClick={handleAutoFix}
+                aria-label="Auto-fix common JSON issues"
               >
                 Auto-Fix
               </Button>
@@ -312,6 +316,7 @@ const JsonValidator = () => {
                 color="error"
                 startIcon={<Clear />}
                 onClick={handleClear}
+                aria-label="Clear input and output"
               >
                 Clear
               </Button>
@@ -338,6 +343,7 @@ const JsonValidator = () => {
                 startIcon={<ContentCopy />}
                 onClick={handleCopy}
                 disabled={!output}
+                aria-label="Copy output to clipboard"
               >
                 Copy Output
               </Button>
@@ -347,6 +353,7 @@ const JsonValidator = () => {
                   startIcon={<CompareArrows />}
                   onClick={() => setShowDiff(!showDiff)}
                   color="info"
+                  aria-label="Hide diff comparison view"
                 >
                   Hide Diff
                 </Button>
@@ -370,7 +377,7 @@ const JsonValidator = () => {
             <Typography variant="h6">
               Changes Made by Auto-Fix
             </Typography>
-            <IconButton onClick={() => setShowDiff(false)} size="small">
+            <IconButton onClick={() => setShowDiff(false)} size="small" aria-label="Close diff view">
               <Close />
             </IconButton>
           </Box>

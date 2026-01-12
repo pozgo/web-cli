@@ -372,6 +372,7 @@ const YamlValidator = () => {
                 color="primary"
                 startIcon={<CheckCircle />}
                 onClick={handleValidate}
+                aria-label="Validate YAML syntax"
               >
                 Validate
               </Button>
@@ -379,6 +380,7 @@ const YamlValidator = () => {
                 variant="outlined"
                 startIcon={<FormatAlignLeft />}
                 onClick={handleFormat}
+                aria-label="Format and beautify YAML"
               >
                 Format
               </Button>
@@ -386,6 +388,7 @@ const YamlValidator = () => {
                 variant="outlined"
                 startIcon={<AutoFixHigh />}
                 onClick={handleAutoFix}
+                aria-label="Auto-fix common YAML issues"
               >
                 Auto-Fix
               </Button>
@@ -394,6 +397,7 @@ const YamlValidator = () => {
                 color="error"
                 startIcon={<Clear />}
                 onClick={handleClear}
+                aria-label="Clear input and output"
               >
                 Clear
               </Button>
@@ -420,6 +424,7 @@ const YamlValidator = () => {
                 startIcon={<ContentCopy />}
                 onClick={handleCopy}
                 disabled={!output}
+                aria-label="Copy output to clipboard"
               >
                 Copy Output
               </Button>
@@ -429,6 +434,7 @@ const YamlValidator = () => {
                   startIcon={<CompareArrows />}
                   onClick={() => setShowDiff(!showDiff)}
                   color="info"
+                  aria-label="Hide diff comparison view"
                 >
                   Hide Diff
                 </Button>
@@ -452,7 +458,7 @@ const YamlValidator = () => {
             <Typography variant="h6">
               Changes Made by Auto-Fix
             </Typography>
-            <IconButton onClick={() => setShowDiff(false)} size="small">
+            <IconButton onClick={() => setShowDiff(false)} size="small" aria-label="Close diff view">
               <Close />
             </IconButton>
           </Box>

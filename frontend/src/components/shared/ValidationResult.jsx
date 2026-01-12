@@ -1,12 +1,13 @@
-import React from 'react';
-import { Box, Alert, Typography, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import React, { memo } from 'react';
+import PropTypes from 'prop-types';
+import { Alert, Typography, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { CheckCircle, Error as ErrorIcon } from '@mui/icons-material';
 
 /**
  * ValidationResult - Displays validation success or error messages
  * Shows line numbers and descriptions for each error
  */
-const ValidationResult = ({ isValid, errors = [], successMessage = 'Valid!' }) => {
+const ValidationResult = memo(({ isValid, errors = [], successMessage = 'Valid!' }) => {
   // Not validated yet
   if (isValid === null) {
     return null;
@@ -66,6 +67,21 @@ const ValidationResult = ({ isValid, errors = [], successMessage = 'Valid!' }) =
       )}
     </Alert>
   );
+});
+
+ValidationResult.displayName = 'ValidationResult';
+
+ValidationResult.propTypes = {
+  isValid: PropTypes.bool,
+  errors: PropTypes.arrayOf(
+    PropTypes.shape({
+      line: PropTypes.number,
+      column: PropTypes.number,
+      message: PropTypes.string.isRequired,
+      suggestion: PropTypes.string,
+    })
+  ),
+  successMessage: PropTypes.string,
 };
 
 export default ValidationResult;
