@@ -1,6 +1,6 @@
 basePath: /api
 definitions:
-  models.BashScriptCreate:
+  github_com_pozgo_web-cli_internal_models.BashScriptCreate:
     properties:
       content:
         type: string
@@ -8,13 +8,16 @@ definitions:
         type: string
       filename:
         type: string
+      group:
+        description: Optional, defaults to "default"
+        type: string
       name:
         type: string
     required:
     - content
     - name
     type: object
-  models.BashScriptResponse:
+  github_com_pozgo_web-cli_internal_models.BashScriptResponse:
     properties:
       content:
         description: Only included when specifically requested
@@ -25,14 +28,20 @@ definitions:
         type: string
       filename:
         type: string
+      group:
+        description: Group/category for organization
+        type: string
       id:
         type: integer
       name:
         type: string
+      source:
+        description: '"sqlite" or "vault"'
+        type: string
       updated_at:
         type: string
     type: object
-  models.BashScriptUpdate:
+  github_com_pozgo_web-cli_internal_models.BashScriptUpdate:
     properties:
       content:
         type: string
@@ -40,10 +49,12 @@ definitions:
         type: string
       filename:
         type: string
+      group:
+        type: string
       name:
         type: string
     type: object
-  models.CommandExecution:
+  github_com_pozgo_web-cli_internal_models.CommandExecution:
     properties:
       command:
         description: Command to execute
@@ -54,12 +65,24 @@ definitions:
       save_as:
         description: 'Optional: save as template with this name'
         type: string
+      server_group:
+        description: Server group for remote execution (Vault)
+        type: string
       server_id:
-        description: Server ID for remote execution
+        description: Server ID for remote execution (SQLite)
         type: integer
+      server_name:
+        description: Server name for remote execution (Vault)
+        type: string
+      ssh_key_group:
+        description: SSH key group for remote execution (Vault)
+        type: string
       ssh_key_id:
-        description: SSH key ID for remote execution
+        description: SSH key ID for remote execution (SQLite)
         type: integer
+      ssh_key_name:
+        description: SSH key name for remote execution (Vault)
+        type: string
       ssh_password:
         description: SSH password (for remote, if key auth fails)
         type: string
@@ -72,7 +95,7 @@ definitions:
     required:
     - command
     type: object
-  models.CommandHistory:
+  github_com_pozgo_web-cli_internal_models.CommandHistory:
     properties:
       command:
         description: Decrypted value
@@ -95,7 +118,7 @@ definitions:
         description: User who executed the command (for local commands)
         type: string
     type: object
-  models.CommandResult:
+  github_com_pozgo_web-cli_internal_models.CommandResult:
     properties:
       command:
         type: string
@@ -111,9 +134,12 @@ definitions:
       user:
         type: string
     type: object
-  models.EnvVariableCreate:
+  github_com_pozgo_web-cli_internal_models.EnvVariableCreate:
     properties:
       description:
+        type: string
+      group:
+        description: Optional, defaults to "default"
         type: string
       name:
         type: string
@@ -123,15 +149,21 @@ definitions:
     - name
     - value
     type: object
-  models.EnvVariableResponse:
+  github_com_pozgo_web-cli_internal_models.EnvVariableResponse:
     properties:
       created_at:
         type: string
       description:
         type: string
+      group:
+        description: Group/category for organization
+        type: string
       id:
         type: integer
       name:
+        type: string
+      source:
+        description: '"sqlite" or "vault"'
         type: string
       updated_at:
         type: string
@@ -139,16 +171,18 @@ definitions:
         description: Will be masked unless explicitly requested
         type: string
     type: object
-  models.EnvVariableUpdate:
+  github_com_pozgo_web-cli_internal_models.EnvVariableUpdate:
     properties:
       description:
+        type: string
+      group:
         type: string
       name:
         type: string
       value:
         type: string
     type: object
-  models.LocalUser:
+  github_com_pozgo_web-cli_internal_models.LocalUser:
     properties:
       created_at:
         type: string
@@ -160,7 +194,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  models.LocalUserCreate:
+  github_com_pozgo_web-cli_internal_models.LocalUserCreate:
     properties:
       name:
         description: Unix username
@@ -168,15 +202,18 @@ definitions:
     required:
     - name
     type: object
-  models.LocalUserUpdate:
+  github_com_pozgo_web-cli_internal_models.LocalUserUpdate:
     properties:
       name:
         description: Unix username
         type: string
     type: object
-  models.SSHKey:
+  github_com_pozgo_web-cli_internal_models.SSHKey:
     properties:
       created_at:
+        type: string
+      group:
+        description: Group/category for organization
         type: string
       id:
         type: integer
@@ -185,11 +222,17 @@ definitions:
       private_key:
         description: Decrypted value
         type: string
+      source:
+        description: '"sqlite" or "vault"'
+        type: string
       updated_at:
         type: string
     type: object
-  models.SSHKeyCreate:
+  github_com_pozgo_web-cli_internal_models.SSHKeyCreate:
     properties:
+      group:
+        description: Optional, defaults to "default"
+        type: string
       name:
         type: string
       private_key:
@@ -198,14 +241,16 @@ definitions:
     - name
     - private_key
     type: object
-  models.SSHKeyUpdate:
+  github_com_pozgo_web-cli_internal_models.SSHKeyUpdate:
     properties:
+      group:
+        type: string
       name:
         type: string
       private_key:
         type: string
     type: object
-  models.SavedCommand:
+  github_com_pozgo_web-cli_internal_models.SavedCommand:
     properties:
       command:
         description: The actual command to execute
@@ -235,7 +280,7 @@ definitions:
         description: 'User to run as (default: root)'
         type: string
     type: object
-  models.SavedCommandCreate:
+  github_com_pozgo_web-cli_internal_models.SavedCommandCreate:
     properties:
       command:
         type: string
@@ -259,7 +304,7 @@ definitions:
     - command
     - name
     type: object
-  models.SavedCommandUpdate:
+  github_com_pozgo_web-cli_internal_models.SavedCommandUpdate:
     properties:
       command:
         type: string
@@ -276,12 +321,22 @@ definitions:
       user:
         type: string
     type: object
-  models.ScriptExecution:
+  github_com_pozgo_web-cli_internal_models.ScriptExecution:
     properties:
+      env_var_groups:
+        description: Groups of env vars to include (Vault, paired with EnvVarNames)
+        items:
+          type: string
+        type: array
       env_var_ids:
-        description: Specific env var IDs to include
+        description: Specific env var IDs to include (SQLite)
         items:
           type: integer
+        type: array
+      env_var_names:
+        description: Names of env vars to include (Vault)
+        items:
+          type: string
         type: array
       include_env_vars:
         description: 'Deprecated: use EnvVarIDs instead'
@@ -289,15 +344,33 @@ definitions:
       is_remote:
         description: True if remote execution
         type: boolean
+      script_group:
+        description: Script group for execution (Vault)
+        type: string
       script_id:
-        description: ID of the script to execute
+        description: ID of the script to execute (SQLite)
         type: integer
+      script_name:
+        description: Name of the script to execute (Vault)
+        type: string
+      server_group:
+        description: Server group for remote execution (Vault)
+        type: string
       server_id:
-        description: Server ID for remote execution
+        description: Server ID for remote execution (SQLite)
         type: integer
+      server_name:
+        description: Server name for remote execution (Vault)
+        type: string
+      ssh_key_group:
+        description: SSH key group for remote execution (Vault)
+        type: string
       ssh_key_id:
-        description: SSH key ID for remote execution
+        description: SSH key ID for remote execution (SQLite)
         type: integer
+      ssh_key_name:
+        description: SSH key name for remote execution (Vault)
+        type: string
       ssh_password:
         description: SSH password (for remote, if key auth fails)
         type: string
@@ -307,10 +380,8 @@ definitions:
       user:
         description: 'User to run as (default: root)'
         type: string
-    required:
-    - script_id
     type: object
-  models.ScriptPresetCreate:
+  github_com_pozgo_web-cli_internal_models.ScriptPresetCreate:
     properties:
       description:
         type: string
@@ -334,7 +405,7 @@ definitions:
     - name
     - script_id
     type: object
-  models.ScriptPresetResponse:
+  github_com_pozgo_web-cli_internal_models.ScriptPresetResponse:
     properties:
       created_at:
         type: string
@@ -361,7 +432,7 @@ definitions:
       user:
         type: string
     type: object
-  models.ScriptPresetUpdate:
+  github_com_pozgo_web-cli_internal_models.ScriptPresetUpdate:
     properties:
       description:
         type: string
@@ -382,7 +453,7 @@ definitions:
       user:
         type: string
     type: object
-  models.ScriptResult:
+  github_com_pozgo_web-cli_internal_models.ScriptResult:
     properties:
       env_vars_injected:
         description: Number of env vars injected
@@ -404,9 +475,12 @@ definitions:
       user:
         type: string
     type: object
-  models.Server:
+  github_com_pozgo_web-cli_internal_models.Server:
     properties:
       created_at:
+        type: string
+      group:
+        description: Group/category for organization
         type: string
       id:
         type: integer
@@ -419,14 +493,20 @@ definitions:
       port:
         description: 'SSH port (default: 22)'
         type: integer
+      source:
+        description: '"sqlite" or "vault"'
+        type: string
       updated_at:
         type: string
       username:
         description: SSH username for remote connections
         type: string
     type: object
-  models.ServerCreate:
+  github_com_pozgo_web-cli_internal_models.ServerCreate:
     properties:
+      group:
+        description: Optional, defaults to "default"
+        type: string
       ip_address:
         type: string
       name:
@@ -438,8 +518,10 @@ definitions:
         description: SSH username for remote connections
         type: string
     type: object
-  models.ServerUpdate:
+  github_com_pozgo_web-cli_internal_models.ServerUpdate:
     properties:
+      group:
+        type: string
       ip_address:
         type: string
       name:
@@ -449,7 +531,106 @@ definitions:
       username:
         type: string
     type: object
-  server.CurrentUserResponse:
+  github_com_pozgo_web-cli_internal_models.VaultConfigCreate:
+    properties:
+      address:
+        type: string
+      enabled:
+        type: boolean
+      mount_path:
+        type: string
+      namespace:
+        type: string
+      token:
+        type: string
+    type: object
+  github_com_pozgo_web-cli_internal_models.VaultConfigResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      has_token:
+        description: Indicates if a token is configured
+        type: boolean
+      id:
+        type: integer
+      mount_path:
+        type: string
+      namespace:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_pozgo_web-cli_internal_models.VaultStatus:
+    properties:
+      address:
+        type: string
+      configured:
+        description: Whether Vault is configured
+        type: boolean
+      connected:
+        description: Whether connection test passed
+        type: boolean
+      enabled:
+        description: Whether Vault is enabled
+        type: boolean
+      error:
+        type: string
+      vault_sealed:
+        type: boolean
+    type: object
+  github_com_pozgo_web-cli_internal_vault.BashScript:
+    properties:
+      content:
+        type: string
+      description:
+        type: string
+      filename:
+        type: string
+      group:
+        type: string
+      name:
+        type: string
+    type: object
+  github_com_pozgo_web-cli_internal_vault.EnvVariable:
+    properties:
+      description:
+        type: string
+      group:
+        type: string
+      name:
+        type: string
+      value:
+        type: string
+    type: object
+  github_com_pozgo_web-cli_internal_vault.SSHKey:
+    properties:
+      created_at:
+        type: string
+      group:
+        type: string
+      name:
+        type: string
+      private_key:
+        type: string
+    type: object
+  github_com_pozgo_web-cli_internal_vault.Server:
+    properties:
+      group:
+        type: string
+      ip_address:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      username:
+        type: string
+    type: object
+  internal_server.CurrentUserResponse:
     description: Current system user information
     properties:
       gid:
@@ -468,14 +649,14 @@ definitions:
         example: root
         type: string
     type: object
-  server.ErrorResponse:
+  internal_server.ErrorResponse:
     description: Error response returned by the API
     properties:
       error:
         example: Invalid request body
         type: string
     type: object
-  server.ShellInfo:
+  internal_server.ShellInfo:
     description: Information about an available shell
     properties:
       name:
@@ -483,6 +664,19 @@ definitions:
         type: string
       path:
         example: /bin/bash
+        type: string
+    type: object
+  internal_server.StreamMessage:
+    properties:
+      data:
+        description: output chunk or error message
+        type: string
+      result:
+        allOf:
+        - $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptResult'
+        description: final result
+      type:
+        description: '"output", "result", "error"'
         type: string
     type: object
 host: localhost:7777
@@ -504,6 +698,11 @@ paths:
       consumes:
       - application/json
       description: Get a list of all bash scripts (without content by default)
+      parameters:
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
       produces:
       - application/json
       responses:
@@ -511,12 +710,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.BashScriptResponse'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all bash scripts
@@ -532,22 +731,22 @@ paths:
         name: script
         required: true
         schema:
-          $ref: '#/definitions/models.BashScriptCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.BashScriptResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a bash script
@@ -572,11 +771,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete a bash script
@@ -603,15 +802,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.BashScriptResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a bash script by ID
@@ -632,22 +831,22 @@ paths:
         name: script
         required: true
         schema:
-          $ref: '#/definitions/models.BashScriptUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.BashScriptResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update a bash script
@@ -671,20 +870,20 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.ScriptPresetResponse'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse'
             type: array
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get presets for a script
@@ -701,29 +900,89 @@ paths:
         name: execution
         required: true
         schema:
-          $ref: '#/definitions/models.ScriptExecution'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptExecution'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScriptResult'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptResult'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Execute a bash script
+      tags:
+      - Bash Scripts
+  /bash-scripts/execute/stream:
+    post:
+      consumes:
+      - application/json
+      description: Execute a stored bash script locally or remotely with real-time
+        output streaming via SSE
+      parameters:
+      - description: Script execution request
+        in: body
+        name: execution
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptExecution'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_server.StreamMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Execute a bash script with streaming output
+      tags:
+      - Bash Scripts
+  /bash-scripts/groups:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all distinct group names for bash scripts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all bash script groups
       tags:
       - Bash Scripts
   /commands/execute:
@@ -737,26 +996,26 @@ paths:
         name: command
         required: true
         schema:
-          $ref: '#/definitions/models.CommandExecution'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.CommandExecution'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.CommandResult'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.CommandResult'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Execute a command
@@ -772,6 +1031,10 @@ paths:
         in: query
         name: show_values
         type: boolean
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
       produces:
       - application/json
       responses:
@@ -779,12 +1042,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.EnvVariableResponse'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all environment variables
@@ -800,22 +1063,22 @@ paths:
         name: envvar
         required: true
         schema:
-          $ref: '#/definitions/models.EnvVariableCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.EnvVariableResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create an environment variable
@@ -840,11 +1103,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete an environment variable
@@ -870,15 +1133,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.EnvVariableResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get an environment variable by ID
@@ -899,25 +1162,48 @@ paths:
         name: envvar
         required: true
         schema:
-          $ref: '#/definitions/models.EnvVariableUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.EnvVariableResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update an environment variable
+      tags:
+      - Environment Variables
+  /env-variables/groups:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all distinct group names for environment variables
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all environment variable groups
       tags:
       - Environment Variables
   /history:
@@ -942,12 +1228,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.CommandHistory'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.CommandHistory'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List command history
@@ -970,15 +1256,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.CommandHistory'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.CommandHistory'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a command history entry by ID
@@ -989,6 +1275,11 @@ paths:
       consumes:
       - application/json
       description: Get a list of all SSH keys stored in the system
+      parameters:
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
       produces:
       - application/json
       responses:
@@ -996,12 +1287,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.SSHKey'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all SSH keys
@@ -1017,22 +1308,22 @@ paths:
         name: key
         required: true
         schema:
-          $ref: '#/definitions/models.SSHKeyCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKeyCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.SSHKey'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a new SSH key
@@ -1057,11 +1348,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete an SSH key
@@ -1083,15 +1374,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.SSHKey'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get an SSH key by ID
@@ -1112,25 +1403,48 @@ paths:
         name: key
         required: true
         schema:
-          $ref: '#/definitions/models.SSHKeyUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKeyUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.SSHKey'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update an SSH key
+      tags:
+      - SSH Keys
+  /keys/groups:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all distinct group names for SSH keys
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all SSH key groups
       tags:
       - SSH Keys
   /local-users:
@@ -1145,12 +1459,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.LocalUser'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all local users
@@ -1166,22 +1480,22 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/models.LocalUserCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUserCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.LocalUser'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a local user
@@ -1206,11 +1520,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete a local user
@@ -1232,15 +1546,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.LocalUser'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a local user by ID
@@ -1261,22 +1575,22 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/models.LocalUserUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUserUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.LocalUser'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update a local user
@@ -1294,12 +1608,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.SavedCommand'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all saved commands
@@ -1315,22 +1629,22 @@ paths:
         name: command
         required: true
         schema:
-          $ref: '#/definitions/models.SavedCommandCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommandCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.SavedCommand'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a saved command
@@ -1355,11 +1669,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete a saved command
@@ -1381,15 +1695,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.SavedCommand'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a saved command by ID
@@ -1410,22 +1724,22 @@ paths:
         name: command
         required: true
         schema:
-          $ref: '#/definitions/models.SavedCommandUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommandUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.SavedCommand'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update a saved command
@@ -1443,12 +1757,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.ScriptPresetResponse'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all script presets
@@ -1464,22 +1778,22 @@ paths:
         name: preset
         required: true
         schema:
-          $ref: '#/definitions/models.ScriptPresetCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.ScriptPresetResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a script preset
@@ -1504,11 +1818,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete a script preset
@@ -1530,15 +1844,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScriptPresetResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a script preset by ID
@@ -1559,22 +1873,22 @@ paths:
         name: preset
         required: true
         schema:
-          $ref: '#/definitions/models.ScriptPresetUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScriptPresetResponse'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update a script preset
@@ -1585,6 +1899,11 @@ paths:
       consumes:
       - application/json
       description: Get a list of all remote servers configured in the system
+      parameters:
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
       produces:
       - application/json
       responses:
@@ -1592,12 +1911,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Server'
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.Server'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: List all servers
@@ -1613,22 +1932,22 @@ paths:
         name: server
         required: true
         schema:
-          $ref: '#/definitions/models.ServerCreate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ServerCreate'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Server'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.Server'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Create a new server
@@ -1653,11 +1972,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Delete a server
@@ -1679,15 +1998,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Server'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.Server'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get a server by ID
@@ -1708,25 +2027,48 @@ paths:
         name: server
         required: true
         schema:
-          $ref: '#/definitions/models.ServerUpdate'
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.ServerUpdate'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Server'
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.Server'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Update a server
+      tags:
+      - Servers
+  /servers/groups:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all distinct group names for servers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List all server groups
       tags:
       - Servers
   /system/current-user:
@@ -1740,11 +2082,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/server.CurrentUserResponse'
+            $ref: '#/definitions/internal_server.CurrentUserResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/internal_server.ErrorResponse'
       security:
       - BasicAuth: []
       summary: Get current system user
@@ -1762,13 +2104,402 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/server.ShellInfo'
+              $ref: '#/definitions/internal_server.ShellInfo'
             type: array
       security:
       - BasicAuth: []
       summary: List available shells
       tags:
       - System
+  /vault/bash-scripts:
+    get:
+      description: Retrieve all bash scripts stored in Vault
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_vault.BashScript'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List bash scripts from Vault
+      tags:
+      - Vault
+    post:
+      consumes:
+      - application/json
+      description: Create a new bash script in HashiCorp Vault storage
+      parameters:
+      - description: Bash script data
+        in: body
+        name: script
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created script info with source field
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or Vault not configured
+          schema:
+            type: string
+        "500":
+          description: Failed to store script
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Store bash script in Vault
+      tags:
+      - Vault
+  /vault/config:
+    delete:
+      description: Remove the Vault configuration
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Delete Vault configuration
+      tags:
+      - Vault
+    get:
+      description: Retrieve the current Vault configuration (token is never returned)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get Vault configuration
+      tags:
+      - Vault
+    post:
+      consumes:
+      - application/json
+      description: Configure or update the Vault connection settings
+      parameters:
+      - description: Vault configuration
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigCreate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create or update Vault configuration
+      tags:
+      - Vault
+  /vault/env-variables:
+    get:
+      description: Retrieve all environment variables stored in Vault
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_vault.EnvVariable'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List environment variables from Vault
+      tags:
+      - Vault
+    post:
+      consumes:
+      - application/json
+      description: Store a new environment variable in Vault
+      parameters:
+      - description: Environment Variable
+        in: body
+        name: envVar
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            group:
+              type: string
+            name:
+              type: string
+            value:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              description:
+                type: string
+              group:
+                type: string
+              name:
+                type: string
+              source:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create environment variable in Vault
+      tags:
+      - Vault
+  /vault/servers:
+    get:
+      description: Retrieve all server configurations stored in Vault
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_vault.Server'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List servers from Vault
+      tags:
+      - Vault
+    post:
+      consumes:
+      - application/json
+      description: Store a new server configuration in Vault
+      parameters:
+      - description: Server
+        in: body
+        name: server
+        required: true
+        schema:
+          properties:
+            group:
+              type: string
+            ip_address:
+              type: string
+            name:
+              type: string
+            port:
+              type: integer
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              group:
+                type: string
+              ip_address:
+                type: string
+              name:
+                type: string
+              port:
+                type: integer
+              source:
+                type: string
+              username:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create server in Vault
+      tags:
+      - Vault
+  /vault/ssh-keys:
+    get:
+      description: Retrieve all SSH keys stored in Vault
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_pozgo_web-cli_internal_vault.SSHKey'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: List SSH keys from Vault
+      tags:
+      - Vault
+    post:
+      consumes:
+      - application/json
+      description: Store a new SSH key in Vault
+      parameters:
+      - description: SSH Key
+        in: body
+        name: key
+        required: true
+        schema:
+          properties:
+            group:
+              type: string
+            name:
+              type: string
+            private_key:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              created_at:
+                type: string
+              group:
+                type: string
+              name:
+                type: string
+              source:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Create SSH key in Vault
+      tags:
+      - Vault
+  /vault/status:
+    get:
+      description: Check the current Vault connection status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.VaultStatus'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Get Vault connection status
+      tags:
+      - Vault
+  /vault/test:
+    post:
+      description: Test the connection to Vault and initialize the secrets structure
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_pozgo_web-cli_internal_models.VaultStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_server.ErrorResponse'
+      security:
+      - BasicAuth: []
+      summary: Test Vault connection
+      tags:
+      - Vault
 securityDefinitions:
   BasicAuth:
     type: basic

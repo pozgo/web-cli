@@ -9,6 +9,8 @@ import {
   Alert,
   Box,
 } from '@mui/material';
+import StorageSelector from './shared/StorageSelector';
+import GroupInput from './shared/GroupInput';
 
 /**
  * AddKeyDialog component - dialog for adding new SSH keys
@@ -20,6 +22,8 @@ import {
 const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
   const [name, setName] = useState('');
   const [privateKey, setPrivateKey] = useState('');
+  const [group, setGroup] = useState('default');
+  const [storage, setStorage] = useState('local');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +46,10 @@ const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/keys', {
+      // Choose API endpoint based on storage selection
+      const endpoint = storage === 'vault' ? '/api/vault/ssh-keys' : '/api/keys';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,6 +57,7 @@ const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
         body: JSON.stringify({
           name: name.trim(),
           private_key: privateKey,  // Don't trim - SSH keys need their newlines preserved
+          group: group.trim() || 'default',
         }),
       });
 
@@ -61,6 +69,8 @@ const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
       // Success - reset form and notify parent
       setName('');
       setPrivateKey('');
+      setGroup('default');
+      setStorage('local');
       setError(null);
       onKeyAdded();
     } catch (err) {
@@ -75,6 +85,8 @@ const AddKeyDialog = ({ open, onClose, onKeyAdded }) => {
     if (!loading) {
       setName('');
       setPrivateKey('');
+      setGroup('default');
+      setStorage('local');
       setError(null);
       onClose();
     }
@@ -128,6 +140,22 @@ b3BlbnNzaC1rZXktdjEAAAAABG5vbmUA..."
               },
             }}
           />
+
+          <GroupInput
+            value={group}
+            onChange={setGroup}
+            resourceType="keys"
+            disabled={loading}
+            helperText="Select an existing group or type a new one"
+          />
+
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <StorageSelector
+              value={storage}
+              onChange={setStorage}
+              disabled={loading}
+            />
+          </Box>
 
           <Box sx={{ mt: 2 }}>
             <Alert severity="warning">

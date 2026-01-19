@@ -10,6 +10,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -17,6 +20,8 @@ import {
   FullscreenExit,
   Refresh,
   VpnKey,
+  Storage,
+  Lock,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { TerminalProvider, useTerminal } from '../context/TerminalContext';
@@ -60,10 +65,22 @@ const TerminalContent = () => {
 
     const fetchSshKeys = async () => {
       try {
+        // /api/keys already returns merged local + vault keys with source field
         const response = await fetch('/api/keys');
         if (response.ok) {
           const data = await response.json();
-          setSshKeys(data || []);
+          const keysWithCompositeId = (data || []).map((key) => {
+            // Determine source: vault keys have source="vault", local have source="sqlite" or no source
+            const isVault = key.source === 'vault';
+            // Create composite ID: vault keys use name (no numeric id), local keys use id
+            const compositeId = isVault ? `vault:${key.name}` : `local:${key.id}`;
+            return {
+              ...key,
+              source: isVault ? 'vault' : 'local',
+              compositeId,
+            };
+          });
+          setSshKeys(keysWithCompositeId);
         }
       } catch (err) {
         console.error('Failed to fetch SSH keys:', err);
@@ -103,12 +120,19 @@ const TerminalContent = () => {
   // Handle SSH key change for active tab
   const handleSshKeyChange = (e) => {
     if (activeTab) {
-      updateTabConfig(activeTab.id, { sshKeyId: e.target.value });
+      const compositeId = e.target.value;
+      updateTabConfig(activeTab.id, { sshKeyId: compositeId });
       // Trigger reconnect
       window.dispatchEvent(
         new CustomEvent('terminal-reconnect', { detail: { tabId: activeTab.id } })
       );
     }
+  };
+
+  // Helper to get the selected key object from composite ID
+  const getSelectedKey = (compositeId) => {
+    if (!compositeId) return null;
+    return sshKeys.find((k) => k.compositeId === compositeId);
   };
 
   // Handle reconnect for active tab
@@ -170,24 +194,46 @@ const TerminalContent = () => {
         </FormControl>
 
         {/* SSH Key selector for active tab */}
-        <FormControl size="small" sx={{ minWidth: 180 }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel>SSH Key</InputLabel>
           <Select
             value={activeTab?.sshKeyId || ''}
             label="SSH Key"
             onChange={handleSshKeyChange}
-            startAdornment={
-              activeTab?.sshKeyId ? (
-                <VpnKey sx={{ mr: 1, fontSize: 18, color: 'success.main' }} />
-              ) : null
-            }
+            renderValue={(value) => {
+              if (!value) return <em>None</em>;
+              const key = getSelectedKey(value);
+              if (!key) return value;
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <VpnKey sx={{ fontSize: 18, color: 'success.main' }} />
+                  <span>{key.name}</span>
+                  {key.source === 'vault' ? (
+                    <Lock sx={{ fontSize: 14, color: 'secondary.main' }} />
+                  ) : (
+                    <Storage sx={{ fontSize: 14, color: 'text.secondary' }} />
+                  )}
+                </Box>
+              );
+            }}
           >
             <MenuItem value="">
               <em>None</em>
             </MenuItem>
             {sshKeys.map((key) => (
-              <MenuItem key={key.id} value={key.id}>
-                {key.name}
+              <MenuItem key={key.compositeId} value={key.compositeId}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <VpnKey fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={key.name} />
+                <Chip
+                  icon={key.source === 'vault' ? <Lock sx={{ fontSize: '14px !important' }} /> : <Storage sx={{ fontSize: '14px !important' }} />}
+                  label={key.source === 'vault' ? 'Vault' : 'Local'}
+                  size="small"
+                  variant="outlined"
+                  color={key.source === 'vault' ? 'secondary' : 'default'}
+                  sx={{ ml: 1, height: 24 }}
+                />
               </MenuItem>
             ))}
           </Select>
@@ -250,10 +296,42 @@ const TerminalContent = () => {
             <span style={{ color: '#f44336' }}>Disconnected</span>
           )}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Tabs: {tabs.length}/{maxTabs} | Shell: {activeTab?.shell || 'bash'}
-          {activeTab?.sshKeyId &&
-            ` | SSH Key: ${sshKeys.find((k) => k.id === activeTab.sshKeyId)?.name || 'Selected'}`}
+        <Typography variant="body2" color="text.secondary" component="div">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <span>Tabs: {tabs.length}/{maxTabs}</span>
+            <span>|</span>
+            <span>Shell: {activeTab?.shell || 'bash'}</span>
+            {activeTab?.sshKeyId && (() => {
+              const selectedKey = getSelectedKey(activeTab.sshKeyId);
+              return selectedKey ? (
+                <>
+                  <span>|</span>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <VpnKey sx={{ fontSize: 16, color: 'success.main' }} />
+                    <span>{selectedKey.name}</span>
+                    {selectedKey.source === 'vault' ? (
+                      <Chip
+                        icon={<Lock sx={{ fontSize: '12px !important' }} />}
+                        label="Vault"
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' } }}
+                      />
+                    ) : (
+                      <Chip
+                        icon={<Storage sx={{ fontSize: '12px !important' }} />}
+                        label="Local"
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 20, '& .MuiChip-label': { px: 0.5, fontSize: '0.7rem' } }}
+                      />
+                    )}
+                  </Box>
+                </>
+              ) : null;
+            })()}
+          </Box>
         </Typography>
       </Box>
     </Container>

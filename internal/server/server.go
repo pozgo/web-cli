@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pozgo/web-cli/internal/config"
@@ -29,7 +28,14 @@ type Server struct {
 }
 
 // New creates a new Server instance
-func New(cfg *config.Config, db *database.DB) *Server {
+// Returns an error if critical configuration validation fails (e.g., auth misconfigured)
+func New(cfg *config.Config, db *database.DB) (*Server, error) {
+	// Validate authentication configuration at startup
+	authConfig := middleware.LoadAuthConfig()
+	if err := authConfig.Validate(); err != nil {
+		return nil, err
+	}
+
 	s := &Server{
 		config: cfg,
 		router: mux.NewRouter(),
@@ -38,7 +44,7 @@ func New(cfg *config.Config, db *database.DB) *Server {
 
 	s.setupRoutes()
 
-	return s
+	return s, nil
 }
 
 // setupRoutes configures all HTTP routes
@@ -58,6 +64,7 @@ func (s *Server) setupRoutes() {
 	// SSH Keys endpoints
 	api.HandleFunc("/keys", s.handleListSSHKeys).Methods("GET")
 	api.HandleFunc("/keys", s.handleCreateSSHKey).Methods("POST")
+	api.HandleFunc("/keys/groups", s.handleListSSHKeyGroups).Methods("GET")
 	api.HandleFunc("/keys/{id}", s.handleGetSSHKey).Methods("GET")
 	api.HandleFunc("/keys/{id}", s.handleUpdateSSHKey).Methods("PUT")
 	api.HandleFunc("/keys/{id}", s.handleDeleteSSHKey).Methods("DELETE")
@@ -65,6 +72,7 @@ func (s *Server) setupRoutes() {
 	// Servers endpoints
 	api.HandleFunc("/servers", s.handleListServers).Methods("GET")
 	api.HandleFunc("/servers", s.handleCreateServer).Methods("POST")
+	api.HandleFunc("/servers/groups", s.handleListServerGroups).Methods("GET")
 	api.HandleFunc("/servers/{id}", s.handleGetServer).Methods("GET")
 	api.HandleFunc("/servers/{id}", s.handleUpdateServer).Methods("PUT")
 	api.HandleFunc("/servers/{id}", s.handleDeleteServer).Methods("DELETE")
@@ -97,6 +105,7 @@ func (s *Server) setupRoutes() {
 	// Environment variables endpoints
 	api.HandleFunc("/env-variables", s.handleListEnvVariables).Methods("GET")
 	api.HandleFunc("/env-variables", s.handleCreateEnvVariable).Methods("POST")
+	api.HandleFunc("/env-variables/groups", s.handleListEnvVariableGroups).Methods("GET")
 	api.HandleFunc("/env-variables/{id}", s.handleGetEnvVariable).Methods("GET")
 	api.HandleFunc("/env-variables/{id}", s.handleUpdateEnvVariable).Methods("PUT")
 	api.HandleFunc("/env-variables/{id}", s.handleDeleteEnvVariable).Methods("DELETE")
@@ -104,19 +113,36 @@ func (s *Server) setupRoutes() {
 	// Bash scripts endpoints
 	api.HandleFunc("/bash-scripts", s.handleListBashScripts).Methods("GET")
 	api.HandleFunc("/bash-scripts", s.handleCreateBashScript).Methods("POST")
+	api.HandleFunc("/bash-scripts/groups", s.handleListBashScriptGroups).Methods("GET")
+	api.HandleFunc("/bash-scripts/execute", s.handleExecuteScript).Methods("POST")
+	api.HandleFunc("/bash-scripts/execute/stream", s.handleExecuteScriptStream).Methods("POST")
 	api.HandleFunc("/bash-scripts/{id}", s.handleGetBashScript).Methods("GET")
 	api.HandleFunc("/bash-scripts/{id}", s.handleUpdateBashScript).Methods("PUT")
 	api.HandleFunc("/bash-scripts/{id}", s.handleDeleteBashScript).Methods("DELETE")
-	api.HandleFunc("/bash-scripts/execute", s.handleExecuteScript).Methods("POST")
-	api.HandleFunc("/bash-scripts/execute/stream", s.handleExecuteScriptStream).Methods("POST")
 	api.HandleFunc("/bash-scripts/{id}/presets", s.handleGetScriptPresetsByScript).Methods("GET")
 
-	// Script preset endpoints
+		// Script preset endpoints
 	api.HandleFunc("/script-presets", s.handleListScriptPresets).Methods("GET")
 	api.HandleFunc("/script-presets", s.handleCreateScriptPreset).Methods("POST")
 	api.HandleFunc("/script-presets/{id}", s.handleGetScriptPreset).Methods("GET")
 	api.HandleFunc("/script-presets/{id}", s.handleUpdateScriptPreset).Methods("PUT")
 	api.HandleFunc("/script-presets/{id}", s.handleDeleteScriptPreset).Methods("DELETE")
+
+	// Vault integration endpoints
+	api.HandleFunc("/vault/config", s.handleGetVaultConfig).Methods("GET")
+	api.HandleFunc("/vault/config", s.handleCreateOrUpdateVaultConfig).Methods("POST")
+	api.HandleFunc("/vault/config", s.handleDeleteVaultConfig).Methods("DELETE")
+	api.HandleFunc("/vault/test", s.handleTestVaultConnection).Methods("POST")
+	api.HandleFunc("/vault/status", s.handleGetVaultStatus).Methods("GET")
+	api.HandleFunc("/vault/ssh-keys", s.handleListVaultSSHKeys).Methods("GET")
+	api.HandleFunc("/vault/ssh-keys", s.handleCreateVaultSSHKey).Methods("POST")
+	api.HandleFunc("/vault/servers", s.handleListVaultServers).Methods("GET")
+	api.HandleFunc("/vault/servers", s.handleCreateVaultServer).Methods("POST")
+	api.HandleFunc("/vault/env-variables", s.handleListVaultEnvVariables).Methods("GET")
+	api.HandleFunc("/vault/env-variables", s.handleCreateVaultEnvVariable).Methods("POST")
+	api.HandleFunc("/vault/bash-scripts", s.handleListVaultScripts).Methods("GET")
+	api.HandleFunc("/vault/bash-scripts", s.handleCreateVaultScript).Methods("POST")
+	api.HandleFunc("/vault/scripts", s.handleListVaultScripts).Methods("GET") // Backward compatibility
 
 	// Terminal WebSocket endpoint (for interactive shell)
 	api.HandleFunc("/terminal/ws", s.handleTerminalWebSocket)
@@ -281,9 +307,9 @@ func (s *Server) Start() error {
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 10 * time.Minute, // Allow long-running script streams
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  s.config.GetReadTimeout(),
+		WriteTimeout: s.config.GetWriteTimeout(),
+		IdleTimeout:  s.config.GetIdleTimeout(),
 	}
 
 	// Start with TLS if configured

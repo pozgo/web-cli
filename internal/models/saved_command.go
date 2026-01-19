@@ -47,8 +47,12 @@ type CommandExecution struct {
 	SSHPassword  string `json:"ssh_password,omitempty"`      // SSH password (for remote, if key auth fails)
 	SaveAs       string `json:"save_as,omitempty"`           // Optional: save as template with this name
 	IsRemote     bool   `json:"is_remote"`                   // True if remote execution
-	ServerID     *int64 `json:"server_id,omitempty"`         // Server ID for remote execution
-	SSHKeyID     *int64 `json:"ssh_key_id,omitempty"`        // SSH key ID for remote execution
+	ServerID     *int64 `json:"server_id,omitempty"`         // Server ID for remote execution (SQLite)
+	ServerName   string `json:"server_name,omitempty"`       // Server name for remote execution (Vault)
+	ServerGroup  string `json:"server_group,omitempty"`      // Server group for remote execution (Vault)
+	SSHKeyID     *int64 `json:"ssh_key_id,omitempty"`        // SSH key ID for remote execution (SQLite)
+	SSHKeyName   string `json:"ssh_key_name,omitempty"`      // SSH key name for remote execution (Vault)
+	SSHKeyGroup  string `json:"ssh_key_group,omitempty"`     // SSH key group for remote execution (Vault)
 }
 
 // CommandResult represents the result of a command execution
@@ -63,15 +67,23 @@ type CommandResult struct {
 
 // ScriptExecution represents a request to execute a stored bash script
 type ScriptExecution struct {
-	ScriptID       int64   `json:"script_id" validate:"required"` // ID of the script to execute
-	User           string  `json:"user"`                          // User to run as (default: root)
-	SudoPassword   string  `json:"sudo_password,omitempty"`       // Sudo password (required when user != current for local)
-	SSHPassword    string  `json:"ssh_password,omitempty"`        // SSH password (for remote, if key auth fails)
-	IsRemote       bool    `json:"is_remote"`                     // True if remote execution
-	ServerID       *int64  `json:"server_id,omitempty"`           // Server ID for remote execution
-	SSHKeyID       *int64  `json:"ssh_key_id,omitempty"`          // SSH key ID for remote execution
-	IncludeEnvVars bool    `json:"include_env_vars"`              // Deprecated: use EnvVarIDs instead
-	EnvVarIDs      []int64 `json:"env_var_ids,omitempty"`         // Specific env var IDs to include
+	ScriptID       int64    `json:"script_id,omitempty"`           // ID of the script to execute (SQLite)
+	ScriptName     string   `json:"script_name,omitempty"`         // Name of the script to execute (Vault)
+	ScriptGroup    string   `json:"script_group,omitempty"`        // Script group for execution (Vault)
+	User           string   `json:"user"`                          // User to run as (default: root)
+	SudoPassword   string   `json:"sudo_password,omitempty"`       // Sudo password (required when user != current for local)
+	SSHPassword    string   `json:"ssh_password,omitempty"`        // SSH password (for remote, if key auth fails)
+	IsRemote       bool     `json:"is_remote"`                     // True if remote execution
+	ServerID       *int64   `json:"server_id,omitempty"`           // Server ID for remote execution (SQLite)
+	ServerName     string   `json:"server_name,omitempty"`         // Server name for remote execution (Vault)
+	ServerGroup    string   `json:"server_group,omitempty"`        // Server group for remote execution (Vault)
+	SSHKeyID       *int64   `json:"ssh_key_id,omitempty"`          // SSH key ID for remote execution (SQLite)
+	SSHKeyName     string   `json:"ssh_key_name,omitempty"`        // SSH key name for remote execution (Vault)
+	SSHKeyGroup    string   `json:"ssh_key_group,omitempty"`       // SSH key group for remote execution (Vault)
+	IncludeEnvVars bool     `json:"include_env_vars"`              // Deprecated: use EnvVarIDs instead
+	EnvVarIDs      []int64  `json:"env_var_ids,omitempty"`         // Specific env var IDs to include (SQLite)
+	EnvVarNames    []string `json:"env_var_names,omitempty"`       // Names of env vars to include (Vault)
+	EnvVarGroups   []string `json:"env_var_groups,omitempty"`      // Groups of env vars to include (Vault, paired with EnvVarNames)
 }
 
 // ScriptResult represents the result of a script execution

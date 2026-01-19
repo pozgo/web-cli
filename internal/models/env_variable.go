@@ -6,9 +6,11 @@ import "time"
 // Values are encrypted at rest using AES-256-GCM
 type EnvVariable struct {
 	ID          int64     `json:"id"`
-	Name        string    `json:"name"`        // Environment variable name (e.g., API_KEY)
-	Value       string    `json:"value"`       // Decrypted value (encrypted in DB)
-	Description string    `json:"description"` // Optional description
+	Name        string    `json:"name"`             // Environment variable name (e.g., API_KEY)
+	Value       string    `json:"value"`            // Decrypted value (encrypted in DB)
+	Description string    `json:"description"`      // Optional description
+	Group       string    `json:"group"`            // Group/category for organization
+	Source      string    `json:"source,omitempty"` // "sqlite" or "vault"
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -18,6 +20,7 @@ type EnvVariableCreate struct {
 	Name        string `json:"name" validate:"required"`
 	Value       string `json:"value" validate:"required"`
 	Description string `json:"description,omitempty"`
+	Group       string `json:"group"` // Optional, defaults to "default"
 }
 
 // EnvVariableUpdate represents the data that can be updated for an environment variable
@@ -25,14 +28,17 @@ type EnvVariableUpdate struct {
 	Name        string `json:"name,omitempty"`
 	Value       string `json:"value,omitempty"`
 	Description string `json:"description,omitempty"`
+	Group       string `json:"group,omitempty"`
 }
 
 // EnvVariableResponse is the API response format (value masked by default)
 type EnvVariableResponse struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
-	Value       string    `json:"value"` // Will be masked unless explicitly requested
+	Value       string    `json:"value"`            // Will be masked unless explicitly requested
 	Description string    `json:"description"`
+	Group       string    `json:"group"`            // Group/category for organization
+	Source      string    `json:"source,omitempty"` // "sqlite" or "vault"
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -48,6 +54,8 @@ func (e *EnvVariable) ToResponse(showValue bool) *EnvVariableResponse {
 		Name:        e.Name,
 		Value:       value,
 		Description: e.Description,
+		Group:       e.Group,
+		Source:      e.Source,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
 	}

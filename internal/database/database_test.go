@@ -70,8 +70,8 @@ func TestDatabaseCreation(t *testing.T) {
 		t.Fatalf("Failed to get version: %v", err)
 	}
 
-	if version != 14 {
-		t.Errorf("Expected schema version 14, got %d", version)
+	if version != 15 {
+		t.Errorf("Expected schema version 15, got %d", version)
 	}
 
 	// Verify all tables exist
@@ -84,6 +84,7 @@ func TestDatabaseCreation(t *testing.T) {
 		"local_users",
 		"env_variables",
 		"bash_scripts",
+		"vault_config",
 	}
 
 	for _, table := range tables {

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppBar, Toolbar, Typography, Box, IconButton, Tooltip } from '@mui/material';
 import { Terminal, Api } from '@mui/icons-material';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import VaultIcon from './shared/VaultIcon';
 
 /**
  * Header component - displays the application header with logo and theme toggle
@@ -22,7 +23,6 @@ const Header = ({ mode, toggleTheme }) => {
             display: 'flex',
             alignItems: 'center',
             cursor: 'pointer',
-            flexGrow: 1,
             '&:hover': {
               opacity: 0.8,
             },
@@ -34,6 +34,8 @@ const Header = ({ mode, toggleTheme }) => {
             Web CLI
           </Typography>
         </Box>
+        <Box sx={{ flexGrow: 1 }} />
+        <VaultIcon sx={{ mr: 1 }} />
         <Tooltip title="API Documentation">
           <IconButton
             color="inherit"

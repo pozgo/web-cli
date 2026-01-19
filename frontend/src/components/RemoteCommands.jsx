@@ -20,9 +20,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Chip,
 } from '@mui/material';
-import { PlayArrow, ArrowBack, Save } from '@mui/icons-material';
+import { PlayArrow, ArrowBack, Save, Storage, Lock } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import GroupSelector from './shared/GroupSelector';
 
 /**
  * RemoteCommands component - execute commands on remote servers via SSH
@@ -49,6 +51,8 @@ const RemoteCommands = () => {
   const [sshPassword, setSSHPassword] = useState('');
   const [availableUsers, setAvailableUsers] = useState([]);
   const [baseUsers, setBaseUsers] = useState(['root']);
+  const [serverGroupFilter, setServerGroupFilter] = useState('all');
+  const [keyGroupFilter, setKeyGroupFilter] = useState('all');
 
   // Fetch data on mount
   useEffect(() => {
@@ -61,7 +65,10 @@ const RemoteCommands = () => {
   // Update available users when server selection changes
   useEffect(() => {
     if (selectedServer && !location.state?.user) {
-      const server = servers.find(s => s.id === parseInt(selectedServer, 10));
+      // Find server by ID for SQLite items or by name for Vault items
+      const server = servers.find(s =>
+        (s.source === 'vault' ? s.name === selectedServer : s.id === parseInt(selectedServer, 10))
+      );
       if (server && server.username) {
         // Add server's username to available users if not already present
         const userSet = new Set(baseUsers);
@@ -213,16 +220,38 @@ const RemoteCommands = () => {
     setOutput('');
 
     try {
+      // Find the selected server and SSH key objects
+      const selectedServerObj = servers.find(s =>
+        (s.source === 'vault' ? s.name === selectedServer : s.id === parseInt(selectedServer, 10))
+      );
+      const selectedSSHKeyObj = sshKeys.find(k =>
+        (k.source === 'vault' ? k.name === selectedSSHKey : k.id === parseInt(selectedSSHKey, 10))
+      );
+
       const payload = {
         command: command.trim(),
         user: user || 'root',
         is_remote: true,
-        server_id: parseInt(selectedServer, 10),
       };
 
-      // Add SSH key if selected
-      if (selectedSSHKey) {
-        payload.ssh_key_id = parseInt(selectedSSHKey, 10);
+      // For server: use name for Vault items, ID for SQLite items
+      if (selectedServerObj) {
+        if (selectedServerObj.source === 'vault') {
+          payload.server_name = selectedServerObj.name;
+          payload.server_group = selectedServerObj.group || 'default';
+        } else {
+          payload.server_id = selectedServerObj.id;
+        }
+      }
+
+      // Add SSH key if selected - use name for Vault items, ID for SQLite items
+      if (selectedSSHKeyObj) {
+        if (selectedSSHKeyObj.source === 'vault') {
+          payload.ssh_key_name = selectedSSHKeyObj.name;
+          payload.ssh_key_group = selectedSSHKeyObj.group || 'default';
+        } else {
+          payload.ssh_key_id = selectedSSHKeyObj.id;
+        }
       }
 
       // Add SSH password if provided (fallback auth or no key)
@@ -291,6 +320,15 @@ const RemoteCommands = () => {
     }
   };
 
+  // Filter servers and SSH keys by group
+  const filteredServers = serverGroupFilter === 'all'
+    ? servers
+    : servers.filter(s => (s.group || 'default') === serverGroupFilter);
+
+  const filteredSSHKeys = keyGroupFilter === 'all'
+    ? sshKeys
+    : sshKeys.filter(k => (k.group || 'default') === keyGroupFilter);
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
@@ -344,46 +382,80 @@ const RemoteCommands = () => {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Select Server</InputLabel>
-                <Select
-                  value={selectedServer}
-                  onChange={(e) => setSelectedServer(e.target.value)}
-                  label="Select Server"
-                  disabled={loading}
-                  error={!selectedServer && error}
-                >
-                  <MenuItem value="">
-                    <em>Choose a server...</em>
-                  </MenuItem>
-                  {servers.map((server) => (
-                    <MenuItem key={server.id} value={server.id}>
-                      {server.name || server.ip_address} ({server.ip_address}:{server.port})
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <GroupSelector
+                  resourceType="servers"
+                  selectedGroup={serverGroupFilter}
+                  onGroupChange={setServerGroupFilter}
+                  size="small"
+                />
+                <FormControl fullWidth required>
+                  <InputLabel>Select Server</InputLabel>
+                  <Select
+                    value={selectedServer}
+                    onChange={(e) => setSelectedServer(e.target.value)}
+                    label="Select Server"
+                    disabled={loading}
+                    error={!selectedServer && error}
+                  >
+                    <MenuItem value="">
+                      <em>Choose a server...</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {filteredServers.map((server) => (
+                      <MenuItem key={server.source === 'vault' ? `vault-${server.name}` : server.id} value={server.source === 'vault' ? server.name : server.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <span>{server.name || server.ip_address} ({server.ip_address}:{server.port})</span>
+                          {server.source && (
+                            server.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>SSH Key (Optional)</InputLabel>
-                <Select
-                  value={selectedSSHKey}
-                  onChange={(e) => setSelectedSSHKey(e.target.value)}
-                  label="SSH Key (Optional)"
-                  disabled={loading}
-                >
-                  <MenuItem value="">
-                    <em>Use password authentication</em>
-                  </MenuItem>
-                  {sshKeys.map((key) => (
-                    <MenuItem key={key.id} value={key.id}>
-                      {key.name}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <GroupSelector
+                  resourceType="keys"
+                  selectedGroup={keyGroupFilter}
+                  onGroupChange={setKeyGroupFilter}
+                  size="small"
+                />
+                <FormControl fullWidth>
+                  <InputLabel>SSH Key (Optional)</InputLabel>
+                  <Select
+                    value={selectedSSHKey}
+                    onChange={(e) => setSelectedSSHKey(e.target.value)}
+                    label="SSH Key (Optional)"
+                    disabled={loading}
+                  >
+                    <MenuItem value="">
+                      <em>Use password authentication</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {filteredSSHKeys.map((key) => (
+                      <MenuItem key={key.source === 'vault' ? `vault-${key.name}` : key.id} value={key.source === 'vault' ? key.name : key.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <span>{key.name}</span>
+                          {key.source && (
+                            key.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Grid>
 
             <Grid item xs={12} md={8}>

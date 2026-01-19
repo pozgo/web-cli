@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pozgo/web-cli/internal/audit"
 	"github.com/pozgo/web-cli/internal/executor"
 	"github.com/pozgo/web-cli/internal/models"
 	"github.com/pozgo/web-cli/internal/repository"
@@ -49,19 +50,42 @@ type CurrentUserResponse struct {
 // @Success 200 {array} models.SSHKey
 // @Failure 500 {object} ErrorResponse
 // @Security BasicAuth
+// @Param group query string false "Filter by group name"
 // @Router /keys [get]
 func (s *Server) handleListSSHKeys(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewSSHKeyRepository(s.db)
+	group := r.URL.Query().Get("group")
 
-	keys, err := repo.GetAll()
+	var keys []*models.SSHKey
+	var err error
+
+	if group != "" {
+		keys, err = repo.GetByGroup(group)
+	} else {
+		keys, err = repo.GetAll()
+	}
 	if err != nil {
 		log.Printf("Error fetching SSH keys: %v", err)
 		http.Error(w, "Failed to fetch SSH keys", http.StatusInternalServerError)
 		return
 	}
 
+	// Merge with Vault keys if available
+	allKeys := s.mergeSSHKeysWithVault(r.Context(), keys)
+
+	// Filter Vault keys by group if specified
+	if group != "" {
+		filtered := make([]*models.SSHKey, 0)
+		for _, k := range allKeys {
+			if k.Group == group || (k.Group == "" && group == "default") {
+				filtered = append(filtered, k)
+			}
+		}
+		allKeys = filtered
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(keys)
+	json.NewEncoder(w).Encode(allKeys)
 }
 
 // handleCreateSSHKey godoc
@@ -235,19 +259,42 @@ func (s *Server) handleDeleteSSHKey(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} models.Server
 // @Failure 500 {object} ErrorResponse
 // @Security BasicAuth
+// @Param group query string false "Filter by group name"
 // @Router /servers [get]
 func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewServerRepository(s.db)
+	group := r.URL.Query().Get("group")
 
-	servers, err := repo.GetAll()
+	var servers []*models.Server
+	var err error
+
+	if group != "" {
+		servers, err = repo.GetByGroup(group)
+	} else {
+		servers, err = repo.GetAll()
+	}
 	if err != nil {
 		log.Printf("Error fetching servers: %v", err)
 		http.Error(w, "Failed to fetch servers", http.StatusInternalServerError)
 		return
 	}
 
+	// Merge with Vault servers if available
+	allServers := s.mergeServersWithVault(r.Context(), servers)
+
+	// Filter Vault servers by group if specified
+	if group != "" {
+		filtered := make([]*models.Server, 0)
+		for _, srv := range allServers {
+			if srv.Group == group || (srv.Group == "" && group == "default") {
+				filtered = append(filtered, srv)
+			}
+		}
+		allServers = filtered
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(servers)
+	json.NewEncoder(w).Encode(allServers)
 }
 
 // handleCreateServer godoc
@@ -479,28 +526,60 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 
 	if exec.IsRemote {
 		// Remote execution via SSH
-		if exec.ServerID == nil {
-			http.Error(w, "Server ID is required for remote execution", http.StatusBadRequest)
+		var server *models.Server
+		var err error
+
+		// Get server details - support both ID (SQLite) and Name (Vault)
+		if exec.ServerID != nil && *exec.ServerID > 0 {
+			serverRepo := repository.NewServerRepository(s.db)
+			server, err = serverRepo.GetByID(*exec.ServerID)
+			if err != nil {
+				log.Printf("Error fetching server by ID: %v", err)
+				http.Error(w, "Server not found", http.StatusNotFound)
+				return
+			}
+		} else if exec.ServerName != "" {
+			// Try to find server by name from Vault
+			server, err = s.getServerByNameFromVault(r.Context(), exec.ServerGroup, exec.ServerName)
+			if err != nil {
+				log.Printf("Error fetching server from Vault: %v", err)
+				http.Error(w, "Server not found in Vault", http.StatusNotFound)
+				return
+			}
+			if server == nil {
+				http.Error(w, "Server not found in Vault", http.StatusNotFound)
+				return
+			}
+		} else {
+			http.Error(w, "Server ID or Server Name is required for remote execution", http.StatusBadRequest)
 			return
 		}
 
-		// Get server details
-		serverRepo := repository.NewServerRepository(s.db)
-		server, err := serverRepo.GetByID(*exec.ServerID)
-		if err != nil {
-			log.Printf("Error fetching server: %v", err)
-			http.Error(w, "Server not found", http.StatusNotFound)
-			return
-		}
-
-		// Get SSH key if provided
+		// Get SSH key if provided - support both ID (SQLite) and Name (Vault)
 		var privateKey string
-		if exec.SSHKeyID != nil {
+		if exec.SSHKeyID != nil && *exec.SSHKeyID > 0 {
 			keyRepo := repository.NewSSHKeyRepository(s.db)
 			key, err := keyRepo.GetByID(*exec.SSHKeyID)
 			if err != nil {
-				log.Printf("Error fetching SSH key: %v", err)
+				log.Printf("Error fetching SSH key by ID: %v", err)
 				http.Error(w, "SSH key not found", http.StatusNotFound)
+				return
+			}
+			privateKey = key.PrivateKey
+		} else if exec.SSHKeyName != "" {
+			// Try to find SSH key by name from Vault
+			key, err := s.getSSHKeyByNameFromVault(r.Context(), exec.SSHKeyGroup, exec.SSHKeyName)
+			if err != nil {
+				log.Printf("Error fetching SSH key from Vault: %v", err)
+				http.Error(w, "SSH key not found in Vault", http.StatusNotFound)
+				return
+			}
+			if key == nil {
+				http.Error(w, fmt.Sprintf("SSH key '%s' not found in Vault", exec.SSHKeyName), http.StatusNotFound)
+				return
+			}
+			if key.PrivateKey == "" {
+				http.Error(w, fmt.Sprintf("SSH key '%s' has no private key data in Vault", exec.SSHKeyName), http.StatusBadRequest)
 				return
 			}
 			privateKey = key.PrivateKey
@@ -544,6 +623,9 @@ func (s *Server) handleExecuteCommand(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Warning: failed to save command history: %v", err)
 		// Don't fail the request, just log the error
 	}
+
+	// Audit log the command execution
+	audit.GetLogger().LogCommandExecution(r, exec.Command, exec.User, serverName, exitCode, result.ExecutionTime, result.Error)
 
 	// Save as template if requested
 	if exec.SaveAs != "" {
@@ -974,7 +1056,7 @@ func (s *Server) handleUpdateLocalUser(w http.ResponseWriter, r *http.Request) {
 	user, err := repo.Update(id, &userUpdate)
 	if err != nil {
 		log.Printf("Error updating local user: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Failed to update local user", http.StatusBadRequest)
 		return
 	}
 
@@ -1095,26 +1177,49 @@ func (s *Server) handleListAvailableShells(w http.ResponseWriter, r *http.Reques
 // @Accept json
 // @Produce json
 // @Param show_values query bool false "Show actual values instead of masked values"
+// @Param group query string false "Filter by group name"
 // @Success 200 {array} models.EnvVariableResponse
 // @Failure 500 {object} ErrorResponse
 // @Security BasicAuth
 // @Router /env-variables [get]
 func (s *Server) handleListEnvVariables(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewEnvVariableRepository(s.db)
+	group := r.URL.Query().Get("group")
 
-	envVars, err := repo.GetAll()
+	var envVars []*models.EnvVariable
+	var err error
+
+	if group != "" {
+		envVars, err = repo.GetByGroup(group)
+	} else {
+		envVars, err = repo.GetAll()
+	}
 	if err != nil {
 		log.Printf("Error fetching environment variables: %v", err)
 		http.Error(w, "Failed to fetch environment variables", http.StatusInternalServerError)
 		return
 	}
 
+	// Merge with Vault env variables if available
+	allEnvVars := s.mergeEnvVariablesWithVault(r.Context(), envVars)
+
+	// Filter Vault env vars by group if specified
+	if group != "" {
+		filtered := make([]*models.EnvVariable, 0)
+		for _, ev := range allEnvVars {
+			if ev.Group == group || (ev.Group == "" && group == "default") {
+				filtered = append(filtered, ev)
+			}
+		}
+		allEnvVars = filtered
+	}
+
 	// Check if full values are requested (for internal use)
 	showValues := r.URL.Query().Get("show_values") == "true"
 
 	// Convert to response format with masked values
-	responses := make([]*models.EnvVariableResponse, len(envVars))
-	for i, envVar := range envVars {
+	responses := make([]*models.EnvVariableResponse, len(allEnvVars))
+	for i, envVar := range allEnvVars {
 		responses[i] = envVar.ToResponse(showValues)
 	}
 
@@ -1304,18 +1409,41 @@ func (s *Server) handleDeleteEnvVariable(w http.ResponseWriter, r *http.Request)
 // @Tags Bash Scripts
 // @Accept json
 // @Produce json
+// @Param group query string false "Filter by group name"
 // @Success 200 {array} models.BashScriptResponse
 // @Failure 500 {object} ErrorResponse
 // @Security BasicAuth
 // @Router /bash-scripts [get]
 func (s *Server) handleListBashScripts(w http.ResponseWriter, r *http.Request) {
 	repo := repository.NewBashScriptRepository(s.db)
+	group := r.URL.Query().Get("group")
 
-	scripts, err := repo.GetAll()
+	var scripts []*models.BashScript
+	var err error
+
+	if group != "" {
+		scripts, err = repo.GetByGroup(group)
+	} else {
+		scripts, err = repo.GetAll()
+	}
 	if err != nil {
 		log.Printf("Error fetching bash scripts: %v", err)
 		http.Error(w, "Failed to fetch bash scripts", http.StatusInternalServerError)
 		return
+	}
+
+	// Merge with Vault scripts
+	scripts = s.mergeScriptsWithVault(r.Context(), scripts)
+
+	// Filter Vault scripts by group if specified
+	if group != "" {
+		filtered := make([]*models.BashScript, 0)
+		for _, s := range scripts {
+			if s.Group == group || (s.Group == "" && group == "default") {
+				filtered = append(filtered, s)
+			}
+		}
+		scripts = filtered
 	}
 
 	// Convert to response format (without content for listing)
@@ -1533,9 +1661,9 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate input
-	if exec.ScriptID == 0 {
-		http.Error(w, "Script ID is required", http.StatusBadRequest)
+	// Validate input - either ScriptID or ScriptName must be provided
+	if exec.ScriptID == 0 && exec.ScriptName == "" {
+		http.Error(w, "Script ID or Script Name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -1547,13 +1675,28 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the script
-	scriptRepo := repository.NewBashScriptRepository(s.db)
-	script, err := scriptRepo.GetByID(exec.ScriptID)
-	if err != nil {
-		log.Printf("Error fetching script: %v", err)
-		http.Error(w, "Script not found", http.StatusNotFound)
-		return
+	// Fetch the script - support both ID (SQLite) and Name (Vault)
+	var script *models.BashScript
+	var err error
+	if exec.ScriptID > 0 {
+		scriptRepo := repository.NewBashScriptRepository(s.db)
+		script, err = scriptRepo.GetByID(exec.ScriptID)
+		if err != nil {
+			log.Printf("Error fetching script by ID: %v", err)
+			http.Error(w, "Script not found", http.StatusNotFound)
+			return
+		}
+	} else if exec.ScriptName != "" {
+		script, err = s.getScriptByNameFromVault(r.Context(), exec.ScriptGroup, exec.ScriptName)
+		if err != nil {
+			log.Printf("Error fetching script from Vault: %v", err)
+			http.Error(w, "Script not found in Vault", http.StatusNotFound)
+			return
+		}
+		if script == nil {
+			http.Error(w, "Script not found in Vault", http.StatusNotFound)
+			return
+		}
 	}
 
 	// Build the script content with optional env vars
@@ -1564,8 +1707,8 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 	// Priority: EnvVarIDs (specific selection) > IncludeEnvVars (all) > none
 	envRepo := repository.NewEnvVariableRepository(s.db)
 
-	if len(exec.EnvVarIDs) > 0 {
-		// Fetch specific environment variables by ID
+	if len(exec.EnvVarIDs) > 0 || len(exec.EnvVarNames) > 0 {
+		// Fetch specific environment variables by ID (SQLite)
 		for _, envVarID := range exec.EnvVarIDs {
 			envVar, err := envRepo.GetByID(envVarID)
 			if err != nil {
@@ -1573,6 +1716,26 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			// Escape single quotes in the value for safe shell export
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+		// Fetch specific environment variables by Name (Vault)
+		for i, envVarName := range exec.EnvVarNames {
+			// Get group from EnvVarGroups if available, otherwise use default
+			envVarGroup := "default"
+			if i < len(exec.EnvVarGroups) {
+				envVarGroup = exec.EnvVarGroups[i]
+			}
+			envVar, err := s.getEnvVariableByNameFromVault(r.Context(), envVarGroup, envVarName)
+			if err != nil {
+				log.Printf("Warning: env variable '%s' not found in Vault: %v", envVarName, err)
+				continue
+			}
+			if envVar == nil {
+				log.Printf("Warning: env variable '%s' not found in Vault", envVarName)
+				continue
+			}
 			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
 			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
 			envVarsCount++
@@ -1605,28 +1768,57 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 
 	if exec.IsRemote {
 		// Remote execution via SSH
-		if exec.ServerID == nil {
-			http.Error(w, "Server ID is required for remote execution", http.StatusBadRequest)
+		var server *models.Server
+
+		// Get server details - support both ID (SQLite) and Name (Vault)
+		if exec.ServerID != nil && *exec.ServerID > 0 {
+			serverRepo := repository.NewServerRepository(s.db)
+			server, err = serverRepo.GetByID(*exec.ServerID)
+			if err != nil {
+				log.Printf("Error fetching server by ID: %v", err)
+				http.Error(w, "Server not found", http.StatusNotFound)
+				return
+			}
+		} else if exec.ServerName != "" {
+			server, err = s.getServerByNameFromVault(r.Context(), exec.ServerGroup, exec.ServerName)
+			if err != nil {
+				log.Printf("Error fetching server from Vault: %v", err)
+				http.Error(w, "Server not found in Vault", http.StatusNotFound)
+				return
+			}
+			if server == nil {
+				http.Error(w, "Server not found in Vault", http.StatusNotFound)
+				return
+			}
+		} else {
+			http.Error(w, "Server ID or Server Name is required for remote execution", http.StatusBadRequest)
 			return
 		}
 
-		// Get server details
-		serverRepo := repository.NewServerRepository(s.db)
-		server, err := serverRepo.GetByID(*exec.ServerID)
-		if err != nil {
-			log.Printf("Error fetching server: %v", err)
-			http.Error(w, "Server not found", http.StatusNotFound)
-			return
-		}
-
-		// Get SSH key if provided
+		// Get SSH key if provided - support both ID (SQLite) and Name (Vault)
 		var privateKey string
-		if exec.SSHKeyID != nil {
+		if exec.SSHKeyID != nil && *exec.SSHKeyID > 0 {
 			keyRepo := repository.NewSSHKeyRepository(s.db)
 			key, err := keyRepo.GetByID(*exec.SSHKeyID)
 			if err != nil {
-				log.Printf("Error fetching SSH key: %v", err)
+				log.Printf("Error fetching SSH key by ID: %v", err)
 				http.Error(w, "SSH key not found", http.StatusNotFound)
+				return
+			}
+			privateKey = key.PrivateKey
+		} else if exec.SSHKeyName != "" {
+			key, err := s.getSSHKeyByNameFromVault(r.Context(), exec.SSHKeyGroup, exec.SSHKeyName)
+			if err != nil {
+				log.Printf("Error fetching SSH key from Vault: %v", err)
+				http.Error(w, "SSH key not found in Vault", http.StatusNotFound)
+				return
+			}
+			if key == nil {
+				http.Error(w, fmt.Sprintf("SSH key '%s' not found in Vault", exec.SSHKeyName), http.StatusNotFound)
+				return
+			}
+			if key.PrivateKey == "" {
+				http.Error(w, fmt.Sprintf("SSH key '%s' has no private key data in Vault", exec.SSHKeyName), http.StatusBadRequest)
 				return
 			}
 			privateKey = key.PrivateKey
@@ -1658,7 +1850,7 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 	// Store in command history
 	exitCode := result.ExitCode
 	historyRepo := repository.NewCommandHistoryRepository(s.db)
-	_, err = historyRepo.Create(&models.CommandHistoryCreate{
+	_, histErr := historyRepo.Create(&models.CommandHistoryCreate{
 		Command:         fmt.Sprintf("[Script: %s] %s", script.Name, script.Content[:min(100, len(script.Content))]),
 		Output:          result.Output,
 		ExitCode:        &exitCode,
@@ -1666,9 +1858,12 @@ func (s *Server) handleExecuteScript(w http.ResponseWriter, r *http.Request) {
 		User:            exec.User,
 		ExecutionTimeMs: result.ExecutionTime,
 	})
-	if err != nil {
-		log.Printf("Warning: failed to save command history: %v", err)
+	if histErr != nil {
+		log.Printf("Warning: failed to save command history: %v", histErr)
 	}
+
+	// Audit log the script execution
+	audit.GetLogger().LogScriptExecution(r, script.Name, exec.User, serverName, exitCode, result.ExecutionTime, result.Error)
 
 	// Return result - include error in output if present
 	scriptOutput := result.Output
@@ -1717,9 +1912,9 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Validate input
-	if exec.ScriptID == 0 {
-		http.Error(w, "Script ID is required", http.StatusBadRequest)
+	// Validate input - either ScriptID or ScriptName must be provided
+	if exec.ScriptID == 0 && exec.ScriptName == "" {
+		http.Error(w, "Script ID or Script Name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -1731,13 +1926,28 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Fetch the script
-	scriptRepo := repository.NewBashScriptRepository(s.db)
-	script, err := scriptRepo.GetByID(exec.ScriptID)
-	if err != nil {
-		log.Printf("Error fetching script: %v", err)
-		http.Error(w, "Script not found", http.StatusNotFound)
-		return
+	// Fetch the script - support both ID (SQLite) and Name (Vault)
+	var script *models.BashScript
+	var err error
+	if exec.ScriptID > 0 {
+		scriptRepo := repository.NewBashScriptRepository(s.db)
+		script, err = scriptRepo.GetByID(exec.ScriptID)
+		if err != nil {
+			log.Printf("Error fetching script by ID: %v", err)
+			http.Error(w, "Script not found", http.StatusNotFound)
+			return
+		}
+	} else if exec.ScriptName != "" {
+		script, err = s.getScriptByNameFromVault(r.Context(), exec.ScriptGroup, exec.ScriptName)
+		if err != nil {
+			log.Printf("Error fetching script from Vault: %v", err)
+			http.Error(w, "Script not found in Vault", http.StatusNotFound)
+			return
+		}
+		if script == nil {
+			http.Error(w, "Script not found in Vault", http.StatusNotFound)
+			return
+		}
 	}
 
 	// Build the script content with optional env vars
@@ -1747,11 +1957,32 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 	// Determine which env vars to include
 	envRepo := repository.NewEnvVariableRepository(s.db)
 
-	if len(exec.EnvVarIDs) > 0 {
+	if len(exec.EnvVarIDs) > 0 || len(exec.EnvVarNames) > 0 {
+		// Fetch specific environment variables by ID (SQLite)
 		for _, envVarID := range exec.EnvVarIDs {
 			envVar, err := envRepo.GetByID(envVarID)
 			if err != nil {
 				log.Printf("Warning: env variable ID %d not found: %v", envVarID, err)
+				continue
+			}
+			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
+			scriptContent.WriteString(fmt.Sprintf("export %s='%s'\n", envVar.Name, escapedValue))
+			envVarsCount++
+		}
+		// Fetch specific environment variables by Name (Vault)
+		for i, envVarName := range exec.EnvVarNames {
+			// Get group from EnvVarGroups if available, otherwise use default
+			envVarGroup := "default"
+			if i < len(exec.EnvVarGroups) {
+				envVarGroup = exec.EnvVarGroups[i]
+			}
+			envVar, err := s.getEnvVariableByNameFromVault(r.Context(), envVarGroup, envVarName)
+			if err != nil {
+				log.Printf("Warning: env variable '%s' not found in Vault: %v", envVarName, err)
+				continue
+			}
+			if envVar == nil {
+				log.Printf("Warning: env variable '%s' not found in Vault", envVarName)
 				continue
 			}
 			escapedValue := strings.ReplaceAll(envVar.Value, "'", "'\\''")
@@ -1796,26 +2027,57 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 
 	if exec.IsRemote {
 		// Remote execution via SSH with streaming
-		if exec.ServerID == nil {
-			sendSSE(w, flusher, "error", "Server ID is required for remote execution")
+		var server *models.Server
+
+		// Get server details - support both ID (SQLite) and Name (Vault)
+		if exec.ServerID != nil && *exec.ServerID > 0 {
+			serverRepo := repository.NewServerRepository(s.db)
+			server, err = serverRepo.GetByID(*exec.ServerID)
+			if err != nil {
+				log.Printf("Error fetching server by ID: %v", err)
+				sendSSE(w, flusher, "error", "Server not found")
+				return
+			}
+		} else if exec.ServerName != "" {
+			server, err = s.getServerByNameFromVault(r.Context(), exec.ServerGroup, exec.ServerName)
+			if err != nil {
+				log.Printf("Error fetching server from Vault: %v", err)
+				sendSSE(w, flusher, "error", "Server not found in Vault")
+				return
+			}
+			if server == nil {
+				sendSSE(w, flusher, "error", "Server not found in Vault")
+				return
+			}
+		} else {
+			sendSSE(w, flusher, "error", "Server ID or Server Name is required for remote execution")
 			return
 		}
 
-		serverRepo := repository.NewServerRepository(s.db)
-		server, err := serverRepo.GetByID(*exec.ServerID)
-		if err != nil {
-			log.Printf("Error fetching server: %v", err)
-			sendSSE(w, flusher, "error", "Server not found")
-			return
-		}
-
+		// Get SSH key if provided - support both ID (SQLite) and Name (Vault)
 		var privateKey string
-		if exec.SSHKeyID != nil {
+		if exec.SSHKeyID != nil && *exec.SSHKeyID > 0 {
 			keyRepo := repository.NewSSHKeyRepository(s.db)
 			key, err := keyRepo.GetByID(*exec.SSHKeyID)
 			if err != nil {
-				log.Printf("Error fetching SSH key: %v", err)
+				log.Printf("Error fetching SSH key by ID: %v", err)
 				sendSSE(w, flusher, "error", "SSH key not found")
+				return
+			}
+			privateKey = key.PrivateKey
+		} else if exec.SSHKeyName != "" {
+			key, err := s.getSSHKeyByNameFromVault(r.Context(), exec.SSHKeyGroup, exec.SSHKeyName)
+			if err != nil {
+				log.Printf("Error fetching SSH key from Vault: %v", err)
+				sendSSE(w, flusher, "error", "SSH key not found in Vault")
+				return
+			}
+			if key == nil {
+				sendSSE(w, flusher, "error", fmt.Sprintf("SSH key '%s' not found in Vault", exec.SSHKeyName))
+				return
+			}
+			if key.PrivateKey == "" {
+				sendSSE(w, flusher, "error", fmt.Sprintf("SSH key '%s' has no private key data in Vault", exec.SSHKeyName))
 				return
 			}
 			privateKey = key.PrivateKey
@@ -1866,6 +2128,9 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 			log.Printf("Warning: failed to save command history: %v", err)
 		}
 
+		// Audit log the script execution
+		audit.GetLogger().LogScriptExecution(r, script.Name, exec.User, serverName, exitCode, result.ExecutionTime, result.Error)
+
 		// Send final result
 		scriptResult := models.ScriptResult{
 			ScriptID:      script.ID,
@@ -1908,6 +2173,9 @@ func (s *Server) handleExecuteScriptStream(w http.ResponseWriter, r *http.Reques
 		if err != nil {
 			log.Printf("Warning: failed to save command history: %v", err)
 		}
+
+		// Audit log the script execution
+		audit.GetLogger().LogScriptExecution(r, script.Name, exec.User, serverName, exitCode, result.ExecutionTime, result.Error)
 
 		// Send final result
 		scriptOutput := result.Output
@@ -2261,4 +2529,169 @@ func (s *Server) handleGetScriptPresetsByScript(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(responses)
+}
+
+// handleListSSHKeyGroups godoc
+// @Summary List all SSH key groups
+// @Description Get a list of all distinct group names for SSH keys
+// @Tags SSH Keys
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /keys/groups [get]
+func (s *Server) handleListSSHKeyGroups(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewSSHKeyRepository(s.db)
+
+	groups, err := repo.GetGroups()
+	if err != nil {
+		log.Printf("Error fetching SSH key groups: %v", err)
+		http.Error(w, "Failed to fetch groups", http.StatusInternalServerError)
+		return
+	}
+
+	// Merge with Vault groups if available
+	client := s.getVaultClientIfEnabled()
+	if client != nil {
+		vaultGroups, err := client.ListSSHKeyGroups(r.Context())
+		if err == nil {
+			// Add Vault groups that don't exist in SQLite
+			groupSet := make(map[string]bool)
+			for _, g := range groups {
+				groupSet[g] = true
+			}
+			for _, g := range vaultGroups {
+				if !groupSet[g] {
+					groups = append(groups, g)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(groups)
+}
+
+// handleListServerGroups godoc
+// @Summary List all server groups
+// @Description Get a list of all distinct group names for servers
+// @Tags Servers
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /servers/groups [get]
+func (s *Server) handleListServerGroups(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewServerRepository(s.db)
+
+	groups, err := repo.GetGroups()
+	if err != nil {
+		log.Printf("Error fetching server groups: %v", err)
+		http.Error(w, "Failed to fetch groups", http.StatusInternalServerError)
+		return
+	}
+
+	// Merge with Vault groups if available
+	client := s.getVaultClientIfEnabled()
+	if client != nil {
+		vaultGroups, err := client.ListServerGroups(r.Context())
+		if err == nil {
+			groupSet := make(map[string]bool)
+			for _, g := range groups {
+				groupSet[g] = true
+			}
+			for _, g := range vaultGroups {
+				if !groupSet[g] {
+					groups = append(groups, g)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(groups)
+}
+
+// handleListEnvVariableGroups godoc
+// @Summary List all environment variable groups
+// @Description Get a list of all distinct group names for environment variables
+// @Tags Environment Variables
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /env-variables/groups [get]
+func (s *Server) handleListEnvVariableGroups(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewEnvVariableRepository(s.db)
+
+	groups, err := repo.GetGroups()
+	if err != nil {
+		log.Printf("Error fetching environment variable groups: %v", err)
+		http.Error(w, "Failed to fetch groups", http.StatusInternalServerError)
+		return
+	}
+
+	// Merge with Vault groups if available
+	client := s.getVaultClientIfEnabled()
+	if client != nil {
+		vaultGroups, err := client.ListEnvVariableGroups(r.Context())
+		if err == nil {
+			groupSet := make(map[string]bool)
+			for _, g := range groups {
+				groupSet[g] = true
+			}
+			for _, g := range vaultGroups {
+				if !groupSet[g] {
+					groups = append(groups, g)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(groups)
+}
+
+// handleListBashScriptGroups godoc
+// @Summary List all bash script groups
+// @Description Get a list of all distinct group names for bash scripts
+// @Tags Bash Scripts
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} ErrorResponse
+// @Security BasicAuth
+// @Router /bash-scripts/groups [get]
+func (s *Server) handleListBashScriptGroups(w http.ResponseWriter, r *http.Request) {
+	repo := repository.NewBashScriptRepository(s.db)
+
+	groups, err := repo.GetGroups()
+	if err != nil {
+		log.Printf("Error fetching bash script groups: %v", err)
+		http.Error(w, "Failed to fetch groups", http.StatusInternalServerError)
+		return
+	}
+
+	// Merge with Vault groups if available
+	client := s.getVaultClientIfEnabled()
+	if client != nil {
+		vaultGroups, err := client.ListBashScriptGroups(r.Context())
+		if err == nil {
+			groupSet := make(map[string]bool)
+			for _, g := range groups {
+				groupSet[g] = true
+			}
+			for _, g := range vaultGroups {
+				if !groupSet[g] {
+					groups = append(groups, g)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(groups)
 }

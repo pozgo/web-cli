@@ -23,6 +23,7 @@ const EditServerDialog = ({ open, onClose, onServerUpdated, serverData }) => {
   const [ipAddress, setIPAddress] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('root');
+  const [group, setGroup] = useState('default');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +34,7 @@ const EditServerDialog = ({ open, onClose, onServerUpdated, serverData }) => {
       setIPAddress(serverData.ip_address || '');
       setPort(serverData.port ? String(serverData.port) : '22');
       setUsername(serverData.username || 'root');
+      setGroup(serverData.group || 'default');
     }
   }, [serverData]);
 
@@ -88,6 +90,7 @@ const EditServerDialog = ({ open, onClose, onServerUpdated, serverData }) => {
           ip_address: ipAddress.trim() || undefined,
           port: portNum,
           username: username.trim() || 'root',
+          group: group.trim() || 'default',
         }),
       });
 
@@ -179,6 +182,19 @@ const EditServerDialog = ({ open, onClose, onServerUpdated, serverData }) => {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="root"
             helperText="Username for SSH connections (default: root)"
+            disabled={loading}
+          />
+
+          <TextField
+            margin="dense"
+            label="Group"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            placeholder="default"
+            helperText="Group for organizing servers (default: default)"
             disabled={loading}
           />
 

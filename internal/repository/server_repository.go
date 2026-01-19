@@ -38,14 +38,21 @@ func (r *ServerRepository) Create(server *models.ServerCreate) (*models.Server, 
 		username = "root"
 	}
 
+	// Default group to "default" if not provided
+	group := server.Group
+	if group == "" {
+		group = "default"
+	}
+
 	now := time.Now().UTC()
 
 	result, err := r.db.GetConnection().Exec(
-		"INSERT INTO servers (name, ip_address, port, username, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO servers (name, ip_address, port, username, group_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		nullString(server.Name),
 		nullString(server.IPAddress),
 		port,
 		username,
+		group,
 		now,
 		now,
 	)
@@ -64,6 +71,7 @@ func (r *ServerRepository) Create(server *models.ServerCreate) (*models.Server, 
 		IPAddress: server.IPAddress,
 		Port:      port,
 		Username:  username,
+		Group:     group,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}, nil
@@ -75,9 +83,9 @@ func (r *ServerRepository) GetByID(id int64) (*models.Server, error) {
 	var name, ipAddress sql.NullString
 
 	err := r.db.GetConnection().QueryRow(
-		"SELECT id, name, ip_address, port, username, created_at, updated_at FROM servers WHERE id = ?",
+		"SELECT id, name, ip_address, port, username, group_name, created_at, updated_at FROM servers WHERE id = ?",
 		id,
-	).Scan(&server.ID, &name, &ipAddress, &server.Port, &server.Username, &server.CreatedAt, &server.UpdatedAt)
+	).Scan(&server.ID, &name, &ipAddress, &server.Port, &server.Username, &server.Group, &server.CreatedAt, &server.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("server not found")
@@ -95,7 +103,7 @@ func (r *ServerRepository) GetByID(id int64) (*models.Server, error) {
 // GetAll retrieves all servers
 func (r *ServerRepository) GetAll() ([]*models.Server, error) {
 	rows, err := r.db.GetConnection().Query(
-		"SELECT id, name, ip_address, port, username, created_at, updated_at FROM servers ORDER BY created_at DESC",
+		"SELECT id, name, ip_address, port, username, group_name, created_at, updated_at FROM servers ORDER BY group_name ASC, created_at DESC",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query servers: %w", err)
@@ -107,7 +115,7 @@ func (r *ServerRepository) GetAll() ([]*models.Server, error) {
 		var server models.Server
 		var name, ipAddress sql.NullString
 
-		if err := rows.Scan(&server.ID, &name, &ipAddress, &server.Port, &server.Username, &server.CreatedAt, &server.UpdatedAt); err != nil {
+		if err := rows.Scan(&server.ID, &name, &ipAddress, &server.Port, &server.Username, &server.Group, &server.CreatedAt, &server.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan server: %w", err)
 		}
 
@@ -121,6 +129,64 @@ func (r *ServerRepository) GetAll() ([]*models.Server, error) {
 	}
 
 	return servers, nil
+}
+
+// GetByGroup retrieves all servers in a specific group
+func (r *ServerRepository) GetByGroup(group string) ([]*models.Server, error) {
+	rows, err := r.db.GetConnection().Query(
+		"SELECT id, name, ip_address, port, username, group_name, created_at, updated_at FROM servers WHERE group_name = ? ORDER BY created_at DESC",
+		group,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query servers: %w", err)
+	}
+	defer rows.Close()
+
+	var servers []*models.Server
+	for rows.Next() {
+		var server models.Server
+		var name, ipAddress sql.NullString
+
+		if err := rows.Scan(&server.ID, &name, &ipAddress, &server.Port, &server.Username, &server.Group, &server.CreatedAt, &server.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan server: %w", err)
+		}
+
+		server.Name = name.String
+		server.IPAddress = ipAddress.String
+		servers = append(servers, &server)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating servers: %w", err)
+	}
+
+	return servers, nil
+}
+
+// GetGroups retrieves all distinct group names
+func (r *ServerRepository) GetGroups() ([]string, error) {
+	rows, err := r.db.GetConnection().Query(
+		"SELECT DISTINCT group_name FROM servers ORDER BY group_name ASC",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []string
+	for rows.Next() {
+		var group string
+		if err := rows.Scan(&group); err != nil {
+			return nil, fmt.Errorf("failed to scan group: %w", err)
+		}
+		groups = append(groups, group)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating groups: %w", err)
+	}
+
+	return groups, nil
 }
 
 // Update updates an existing server
@@ -148,6 +214,10 @@ func (r *ServerRepository) Update(id int64, update *models.ServerUpdate) (*model
 		existing.Username = update.Username
 	}
 
+	if update.Group != "" {
+		existing.Group = update.Group
+	}
+
 	// Validate that at least one field is set after update
 	if existing.Name == "" && existing.IPAddress == "" {
 		return nil, fmt.Errorf("at least one of name or ip_address must be provided")
@@ -166,11 +236,12 @@ func (r *ServerRepository) Update(id int64, update *models.ServerUpdate) (*model
 	existing.UpdatedAt = time.Now().UTC()
 
 	_, err = r.db.GetConnection().Exec(
-		"UPDATE servers SET name = ?, ip_address = ?, port = ?, username = ?, updated_at = ? WHERE id = ?",
+		"UPDATE servers SET name = ?, ip_address = ?, port = ?, username = ?, group_name = ?, updated_at = ? WHERE id = ?",
 		nullString(existing.Name),
 		nullString(existing.IPAddress),
 		existing.Port,
 		existing.Username,
+		existing.Group,
 		existing.UpdatedAt,
 		id,
 	)
