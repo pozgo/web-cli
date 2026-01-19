@@ -32,19 +32,19 @@ const (
 
 // AuditEvent represents a single audit log entry
 type AuditEvent struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	EventType   EventType         `json:"event_type"`
-	Outcome     EventOutcome      `json:"outcome"`
-	Actor       string            `json:"actor"`       // Username or "anonymous"
-	SourceIP    string            `json:"source_ip"`   // Client IP address
-	Target      string            `json:"target"`      // What was acted upon (e.g., server name, script name)
-	Command     string            `json:"command,omitempty"`
-	User        string            `json:"user,omitempty"`         // Execution user (e.g., root, ubuntu)
-	Server      string            `json:"server,omitempty"`       // Target server for remote commands
-	ExitCode    *int              `json:"exit_code,omitempty"`    // Command exit code
-	Duration    int64             `json:"duration_ms,omitempty"`  // Execution duration in milliseconds
-	ErrorMsg    string            `json:"error,omitempty"`        // Error message if failed
-	Metadata    map[string]string `json:"metadata,omitempty"`     // Additional context
+	Timestamp time.Time         `json:"timestamp"`
+	EventType EventType         `json:"event_type"`
+	Outcome   EventOutcome      `json:"outcome"`
+	Actor     string            `json:"actor"`     // Username or "anonymous"
+	SourceIP  string            `json:"source_ip"` // Client IP address
+	Target    string            `json:"target"`    // What was acted upon (e.g., server name, script name)
+	Command   string            `json:"command,omitempty"`
+	User      string            `json:"user,omitempty"`        // Execution user (e.g., root, ubuntu)
+	Server    string            `json:"server,omitempty"`      // Target server for remote commands
+	ExitCode  *int              `json:"exit_code,omitempty"`   // Command exit code
+	Duration  int64             `json:"duration_ms,omitempty"` // Execution duration in milliseconds
+	ErrorMsg  string            `json:"error,omitempty"`       // Error message if failed
+	Metadata  map[string]string `json:"metadata,omitempty"`    // Additional context
 }
 
 // Logger handles audit logging

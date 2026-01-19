@@ -35,7 +35,7 @@ type EnvVariableUpdate struct {
 type EnvVariableResponse struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
-	Value       string    `json:"value"`            // Will be masked unless explicitly requested
+	Value       string    `json:"value"` // Will be masked unless explicitly requested
 	Description string    `json:"description"`
 	Group       string    `json:"group"`            // Group/category for organization
 	Source      string    `json:"source,omitempty"` // "sqlite" or "vault"

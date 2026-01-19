@@ -121,7 +121,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bash-scripts/{id}", s.handleDeleteBashScript).Methods("DELETE")
 	api.HandleFunc("/bash-scripts/{id}/presets", s.handleGetScriptPresetsByScript).Methods("GET")
 
-		// Script preset endpoints
+	// Script preset endpoints
 	api.HandleFunc("/script-presets", s.handleListScriptPresets).Methods("GET")
 	api.HandleFunc("/script-presets", s.handleCreateScriptPreset).Methods("POST")
 	api.HandleFunc("/script-presets/{id}", s.handleGetScriptPreset).Methods("GET")
