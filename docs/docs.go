@@ -42,20 +42,28 @@ const docTemplate = `{
                     "Bash Scripts"
                 ],
                 "summary": "List all bash scripts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by group name",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.BashScriptResponse"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -84,7 +92,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.BashScriptCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptCreate"
                         }
                     }
                 ],
@@ -92,19 +100,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.BashScriptResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -135,7 +143,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptExecution"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptExecution"
                         }
                     }
                 ],
@@ -143,25 +151,119 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptResult"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bash-scripts/execute/stream": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Execute a stored bash script locally or remotely with real-time output streaming via SSE",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Bash Scripts"
+                ],
+                "summary": "Execute a bash script with streaming output",
+                "parameters": [
+                    {
+                        "description": "Script execution request",
+                        "name": "execution",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptExecution"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StreamMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bash-scripts/groups": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Get a list of all distinct group names for bash scripts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bash Scripts"
+                ],
+                "summary": "List all bash script groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -205,19 +307,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.BashScriptResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -253,7 +355,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.BashScriptUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptUpdate"
                         }
                     }
                 ],
@@ -261,19 +363,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.BashScriptResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.BashScriptResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -311,13 +413,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -356,26 +458,26 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.ScriptPresetResponse"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -406,7 +508,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CommandExecution"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.CommandExecution"
                         }
                     }
                 ],
@@ -414,25 +516,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.CommandResult"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.CommandResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -462,6 +564,12 @@ const docTemplate = `{
                         "description": "Show actual values instead of masked values",
                         "name": "show_values",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by group name",
+                        "name": "group",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -470,14 +578,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.EnvVariableResponse"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -506,7 +614,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.EnvVariableCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableCreate"
                         }
                     }
                 ],
@@ -514,19 +622,56 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.EnvVariableResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/env-variables/groups": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Get a list of all distinct group names for environment variables",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Environment Variables"
+                ],
+                "summary": "List all environment variable groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -569,19 +714,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.EnvVariableResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -617,7 +762,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.EnvVariableUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableUpdate"
                         }
                     }
                 ],
@@ -625,19 +770,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.EnvVariableResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.EnvVariableResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -675,13 +820,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -726,14 +871,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.CommandHistory"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.CommandHistory"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -770,19 +915,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.CommandHistory"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.CommandHistory"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -806,20 +951,28 @@ const docTemplate = `{
                     "SSH Keys"
                 ],
                 "summary": "List all SSH keys",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by group name",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.SSHKey"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -848,7 +1001,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SSHKeyCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKeyCreate"
                         }
                     }
                 ],
@@ -856,19 +1009,56 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.SSHKey"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/keys/groups": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Get a list of all distinct group names for SSH keys",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SSH Keys"
+                ],
+                "summary": "List all SSH key groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -905,19 +1095,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.SSHKey"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -953,7 +1143,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SSHKeyUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKeyUpdate"
                         }
                     }
                 ],
@@ -961,19 +1151,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.SSHKey"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SSHKey"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1011,13 +1201,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1047,14 +1237,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.LocalUser"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1083,7 +1273,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.LocalUserCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUserCreate"
                         }
                     }
                 ],
@@ -1091,19 +1281,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.LocalUser"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1140,19 +1330,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.LocalUser"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1188,7 +1378,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.LocalUserUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUserUpdate"
                         }
                     }
                 ],
@@ -1196,19 +1386,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.LocalUser"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.LocalUser"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1246,13 +1436,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1282,14 +1472,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.SavedCommand"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1318,7 +1508,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SavedCommandCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommandCreate"
                         }
                     }
                 ],
@@ -1326,19 +1516,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.SavedCommand"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1375,19 +1565,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.SavedCommand"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1423,7 +1613,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SavedCommandUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommandUpdate"
                         }
                     }
                 ],
@@ -1431,19 +1621,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.SavedCommand"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.SavedCommand"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1481,13 +1671,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1517,14 +1707,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.ScriptPresetResponse"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1553,7 +1743,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptPresetCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetCreate"
                         }
                     }
                 ],
@@ -1561,19 +1751,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptPresetResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1610,19 +1800,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptPresetResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1658,7 +1848,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptPresetUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetUpdate"
                         }
                     }
                 ],
@@ -1666,19 +1856,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScriptPresetResponse"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptPresetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1716,13 +1906,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1746,20 +1936,28 @@ const docTemplate = `{
                     "Servers"
                 ],
                 "summary": "List all servers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by group name",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Server"
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.Server"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1788,7 +1986,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ServerCreate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ServerCreate"
                         }
                     }
                 ],
@@ -1796,19 +1994,56 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Server"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.Server"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/groups": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Get a list of all distinct group names for servers",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "List all server groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1845,19 +2080,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Server"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.Server"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1893,7 +2128,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.ServerUpdate"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ServerUpdate"
                         }
                     }
                 ],
@@ -1901,19 +2136,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Server"
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.Server"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1951,13 +2186,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -1985,13 +2220,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/server.CurrentUserResponse"
+                            "$ref": "#/definitions/internal_server.CurrentUserResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -2021,8 +2256,626 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/server.ShellInfo"
+                                "$ref": "#/definitions/internal_server.ShellInfo"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/bash-scripts": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieve all bash scripts stored in Vault",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "List bash scripts from Vault",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_vault.BashScript"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Create a new bash script in HashiCorp Vault storage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Store bash script in Vault",
+                "parameters": [
+                    {
+                        "description": "Bash script data",
+                        "name": "script",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created script info with source field",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or Vault not configured",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to store script",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/config": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieve the current Vault configuration (token is never returned)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Get Vault configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Configure or update the Vault connection settings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Create or update Vault configuration",
+                "parameters": [
+                    {
+                        "description": "Vault configuration",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.VaultConfigResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Remove the Vault configuration",
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Delete Vault configuration",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/env-variables": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieve all environment variables stored in Vault",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "List environment variables from Vault",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_vault.EnvVariable"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Store a new environment variable in Vault",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Create environment variable in Vault",
+                "parameters": [
+                    {
+                        "description": "Environment Variable",
+                        "name": "envVar",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/servers": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieve all server configurations stored in Vault",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "List servers from Vault",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_vault.Server"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Store a new server configuration in Vault",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Create server in Vault",
+                "parameters": [
+                    {
+                        "description": "Server",
+                        "name": "server",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "group": {
+                                    "type": "string"
+                                },
+                                "ip_address": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": "integer"
+                                },
+                                "username": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "group": {
+                                    "type": "string"
+                                },
+                                "ip_address": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": "integer"
+                                },
+                                "source": {
+                                    "type": "string"
+                                },
+                                "username": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/ssh-keys": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Retrieve all SSH keys stored in Vault",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "List SSH keys from Vault",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_pozgo_web-cli_internal_vault.SSHKey"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Store a new SSH key in Vault",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Create SSH key in Vault",
+                "parameters": [
+                    {
+                        "description": "SSH Key",
+                        "name": "key",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "group": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "private_key": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "created_at": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/status": {
+            "get": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Check the current Vault connection status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Get Vault connection status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.VaultStatus"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/vault/test": {
+            "post": {
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "Test the connection to Vault and initialize the secrets structure",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vault"
+                ],
+                "summary": "Test Vault connection",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.VaultStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ErrorResponse"
                         }
                     }
                 }
@@ -2030,7 +2883,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.BashScriptCreate": {
+        "github_com_pozgo_web-cli_internal_models.BashScriptCreate": {
             "type": "object",
             "required": [
                 "content",
@@ -2046,12 +2899,16 @@ const docTemplate = `{
                 "filename": {
                     "type": "string"
                 },
+                "group": {
+                    "description": "Optional, defaults to \"default\"",
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 }
             }
         },
-        "models.BashScriptResponse": {
+        "github_com_pozgo_web-cli_internal_models.BashScriptResponse": {
             "type": "object",
             "properties": {
                 "content": {
@@ -2067,10 +2924,18 @@ const docTemplate = `{
                 "filename": {
                     "type": "string"
                 },
+                "group": {
+                    "description": "Group/category for organization",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "source": {
+                    "description": "\"sqlite\" or \"vault\"",
                     "type": "string"
                 },
                 "updated_at": {
@@ -2078,7 +2943,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.BashScriptUpdate": {
+        "github_com_pozgo_web-cli_internal_models.BashScriptUpdate": {
             "type": "object",
             "properties": {
                 "content": {
@@ -2090,12 +2955,15 @@ const docTemplate = `{
                 "filename": {
                     "type": "string"
                 },
+                "group": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 }
             }
         },
-        "models.CommandExecution": {
+        "github_com_pozgo_web-cli_internal_models.CommandExecution": {
             "type": "object",
             "required": [
                 "command"
@@ -2113,13 +2981,29 @@ const docTemplate = `{
                     "description": "Optional: save as template with this name",
                     "type": "string"
                 },
+                "server_group": {
+                    "description": "Server group for remote execution (Vault)",
+                    "type": "string"
+                },
                 "server_id": {
-                    "description": "Server ID for remote execution",
+                    "description": "Server ID for remote execution (SQLite)",
                     "type": "integer"
                 },
+                "server_name": {
+                    "description": "Server name for remote execution (Vault)",
+                    "type": "string"
+                },
+                "ssh_key_group": {
+                    "description": "SSH key group for remote execution (Vault)",
+                    "type": "string"
+                },
                 "ssh_key_id": {
-                    "description": "SSH key ID for remote execution",
+                    "description": "SSH key ID for remote execution (SQLite)",
                     "type": "integer"
+                },
+                "ssh_key_name": {
+                    "description": "SSH key name for remote execution (Vault)",
+                    "type": "string"
                 },
                 "ssh_password": {
                     "description": "SSH password (for remote, if key auth fails)",
@@ -2135,7 +3019,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CommandHistory": {
+        "github_com_pozgo_web-cli_internal_models.CommandHistory": {
             "type": "object",
             "properties": {
                 "command": {
@@ -2168,7 +3052,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CommandResult": {
+        "github_com_pozgo_web-cli_internal_models.CommandResult": {
             "type": "object",
             "properties": {
                 "command": {
@@ -2192,7 +3076,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EnvVariableCreate": {
+        "github_com_pozgo_web-cli_internal_models.EnvVariableCreate": {
             "type": "object",
             "required": [
                 "name",
@@ -2200,6 +3084,10 @@ const docTemplate = `{
             ],
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "group": {
+                    "description": "Optional, defaults to \"default\"",
                     "type": "string"
                 },
                 "name": {
@@ -2210,7 +3098,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EnvVariableResponse": {
+        "github_com_pozgo_web-cli_internal_models.EnvVariableResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2219,10 +3107,18 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "group": {
+                    "description": "Group/category for organization",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "source": {
+                    "description": "\"sqlite\" or \"vault\"",
                     "type": "string"
                 },
                 "updated_at": {
@@ -2234,10 +3130,13 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EnvVariableUpdate": {
+        "github_com_pozgo_web-cli_internal_models.EnvVariableUpdate": {
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "group": {
                     "type": "string"
                 },
                 "name": {
@@ -2248,7 +3147,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.LocalUser": {
+        "github_com_pozgo_web-cli_internal_models.LocalUser": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2266,7 +3165,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.LocalUserCreate": {
+        "github_com_pozgo_web-cli_internal_models.LocalUserCreate": {
             "type": "object",
             "required": [
                 "name"
@@ -2278,7 +3177,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.LocalUserUpdate": {
+        "github_com_pozgo_web-cli_internal_models.LocalUserUpdate": {
             "type": "object",
             "properties": {
                 "name": {
@@ -2287,10 +3186,14 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SSHKey": {
+        "github_com_pozgo_web-cli_internal_models.SSHKey": {
             "type": "object",
             "properties": {
                 "created_at": {
+                    "type": "string"
+                },
+                "group": {
+                    "description": "Group/category for organization",
                     "type": "string"
                 },
                 "id": {
@@ -2303,18 +3206,26 @@ const docTemplate = `{
                     "description": "Decrypted value",
                     "type": "string"
                 },
+                "source": {
+                    "description": "\"sqlite\" or \"vault\"",
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "models.SSHKeyCreate": {
+        "github_com_pozgo_web-cli_internal_models.SSHKeyCreate": {
             "type": "object",
             "required": [
                 "name",
                 "private_key"
             ],
             "properties": {
+                "group": {
+                    "description": "Optional, defaults to \"default\"",
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2323,9 +3234,12 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SSHKeyUpdate": {
+        "github_com_pozgo_web-cli_internal_models.SSHKeyUpdate": {
             "type": "object",
             "properties": {
+                "group": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2334,7 +3248,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SavedCommand": {
+        "github_com_pozgo_web-cli_internal_models.SavedCommand": {
             "type": "object",
             "properties": {
                 "command": {
@@ -2376,7 +3290,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SavedCommandCreate": {
+        "github_com_pozgo_web-cli_internal_models.SavedCommandCreate": {
             "type": "object",
             "required": [
                 "command",
@@ -2410,7 +3324,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SavedCommandUpdate": {
+        "github_com_pozgo_web-cli_internal_models.SavedCommandUpdate": {
             "type": "object",
             "properties": {
                 "command": {
@@ -2436,17 +3350,28 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScriptExecution": {
+        "github_com_pozgo_web-cli_internal_models.ScriptExecution": {
             "type": "object",
-            "required": [
-                "script_id"
-            ],
             "properties": {
+                "env_var_groups": {
+                    "description": "Groups of env vars to include (Vault, paired with EnvVarNames)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "env_var_ids": {
-                    "description": "Specific env var IDs to include",
+                    "description": "Specific env var IDs to include (SQLite)",
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "env_var_names": {
+                    "description": "Names of env vars to include (Vault)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "include_env_vars": {
@@ -2457,17 +3382,41 @@ const docTemplate = `{
                     "description": "True if remote execution",
                     "type": "boolean"
                 },
+                "script_group": {
+                    "description": "Script group for execution (Vault)",
+                    "type": "string"
+                },
                 "script_id": {
-                    "description": "ID of the script to execute",
+                    "description": "ID of the script to execute (SQLite)",
                     "type": "integer"
+                },
+                "script_name": {
+                    "description": "Name of the script to execute (Vault)",
+                    "type": "string"
+                },
+                "server_group": {
+                    "description": "Server group for remote execution (Vault)",
+                    "type": "string"
                 },
                 "server_id": {
-                    "description": "Server ID for remote execution",
+                    "description": "Server ID for remote execution (SQLite)",
                     "type": "integer"
                 },
+                "server_name": {
+                    "description": "Server name for remote execution (Vault)",
+                    "type": "string"
+                },
+                "ssh_key_group": {
+                    "description": "SSH key group for remote execution (Vault)",
+                    "type": "string"
+                },
                 "ssh_key_id": {
-                    "description": "SSH key ID for remote execution",
+                    "description": "SSH key ID for remote execution (SQLite)",
                     "type": "integer"
+                },
+                "ssh_key_name": {
+                    "description": "SSH key name for remote execution (Vault)",
+                    "type": "string"
                 },
                 "ssh_password": {
                     "description": "SSH password (for remote, if key auth fails)",
@@ -2483,7 +3432,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScriptPresetCreate": {
+        "github_com_pozgo_web-cli_internal_models.ScriptPresetCreate": {
             "type": "object",
             "required": [
                 "name",
@@ -2519,7 +3468,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScriptPresetResponse": {
+        "github_com_pozgo_web-cli_internal_models.ScriptPresetResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2560,7 +3509,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScriptPresetUpdate": {
+        "github_com_pozgo_web-cli_internal_models.ScriptPresetUpdate": {
             "type": "object",
             "properties": {
                 "description": {
@@ -2592,7 +3541,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScriptResult": {
+        "github_com_pozgo_web-cli_internal_models.ScriptResult": {
             "type": "object",
             "properties": {
                 "env_vars_injected": {
@@ -2624,10 +3573,14 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Server": {
+        "github_com_pozgo_web-cli_internal_models.Server": {
             "type": "object",
             "properties": {
                 "created_at": {
+                    "type": "string"
+                },
+                "group": {
+                    "description": "Group/category for organization",
                     "type": "string"
                 },
                 "id": {
@@ -2645,6 +3598,10 @@ const docTemplate = `{
                     "description": "SSH port (default: 22)",
                     "type": "integer"
                 },
+                "source": {
+                    "description": "\"sqlite\" or \"vault\"",
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -2654,9 +3611,13 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ServerCreate": {
+        "github_com_pozgo_web-cli_internal_models.ServerCreate": {
             "type": "object",
             "properties": {
+                "group": {
+                    "description": "Optional, defaults to \"default\"",
+                    "type": "string"
+                },
                 "ip_address": {
                     "type": "string"
                 },
@@ -2673,9 +3634,12 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ServerUpdate": {
+        "github_com_pozgo_web-cli_internal_models.ServerUpdate": {
             "type": "object",
             "properties": {
+                "group": {
+                    "type": "string"
+                },
                 "ip_address": {
                     "type": "string"
                 },
@@ -2690,7 +3654,157 @@ const docTemplate = `{
                 }
             }
         },
-        "server.CurrentUserResponse": {
+        "github_com_pozgo_web-cli_internal_models.VaultConfigCreate": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "mount_path": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_models.VaultConfigResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "has_token": {
+                    "description": "Indicates if a token is configured",
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "mount_path": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_models.VaultStatus": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "configured": {
+                    "description": "Whether Vault is configured",
+                    "type": "boolean"
+                },
+                "connected": {
+                    "description": "Whether connection test passed",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "description": "Whether Vault is enabled",
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "vault_sealed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_vault.BashScript": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_vault.EnvVariable": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_vault.SSHKey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "private_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_pozgo_web-cli_internal_vault.Server": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.CurrentUserResponse": {
             "description": "Current system user information",
             "type": "object",
             "properties": {
@@ -2716,7 +3830,7 @@ const docTemplate = `{
                 }
             }
         },
-        "server.ErrorResponse": {
+        "internal_server.ErrorResponse": {
             "description": "Error response returned by the API",
             "type": "object",
             "properties": {
@@ -2726,7 +3840,7 @@ const docTemplate = `{
                 }
             }
         },
-        "server.ShellInfo": {
+        "internal_server.ShellInfo": {
             "description": "Information about an available shell",
             "type": "object",
             "properties": {
@@ -2737,6 +3851,27 @@ const docTemplate = `{
                 "path": {
                     "type": "string",
                     "example": "/bin/bash"
+                }
+            }
+        },
+        "internal_server.StreamMessage": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "output chunk or error message",
+                    "type": "string"
+                },
+                "result": {
+                    "description": "final result",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_pozgo_web-cli_internal_models.ScriptResult"
+                        }
+                    ]
+                },
+                "type": {
+                    "description": "\"output\", \"result\", \"error\"",
+                    "type": "string"
                 }
             }
         }

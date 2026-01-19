@@ -70,8 +70,8 @@ func TestDatabaseCreation(t *testing.T) {
 		t.Fatalf("Failed to get version: %v", err)
 	}
 
-	if version != 14 {
-		t.Errorf("Expected schema version 14, got %d", version)
+	if version != 16 {
+		t.Errorf("Expected schema version 16, got %d", version)
 	}
 
 	// Verify all tables exist
@@ -84,6 +84,7 @@ func TestDatabaseCreation(t *testing.T) {
 		"local_users",
 		"env_variables",
 		"bash_scripts",
+		"vault_config",
 	}
 
 	for _, table := range tables {
@@ -143,6 +144,15 @@ func TestDatabaseCreation(t *testing.T) {
 		err = db.conn.QueryRow("SELECT name FROM pragma_table_info('bash_scripts') WHERE name=?", field).Scan(&columnName)
 		if err != nil {
 			t.Errorf("bash_scripts table should have %s column after migration 13", field)
+		}
+	}
+
+	// Verify group_name column exists on resource tables (migration 16)
+	groupNameTables := []string{"servers", "ssh_keys", "env_variables", "bash_scripts"}
+	for _, table := range groupNameTables {
+		err = db.conn.QueryRow("SELECT name FROM pragma_table_info(?) WHERE name='group_name'", table).Scan(&columnName)
+		if err != nil {
+			t.Errorf("%s table should have group_name column after migration 16", table)
 		}
 	}
 }

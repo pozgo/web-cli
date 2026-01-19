@@ -6,10 +6,12 @@ import "time"
 // Script content is encrypted at rest using AES-256-GCM
 type BashScript struct {
 	ID          int64     `json:"id"`
-	Name        string    `json:"name"`        // Display name for the script
-	Description string    `json:"description"` // Optional description
-	Content     string    `json:"content"`     // Script content (encrypted in DB)
-	Filename    string    `json:"filename"`    // Original filename if uploaded
+	Name        string    `json:"name"`             // Display name for the script
+	Description string    `json:"description"`      // Optional description
+	Content     string    `json:"content"`          // Script content (encrypted in DB)
+	Filename    string    `json:"filename"`         // Original filename if uploaded
+	Group       string    `json:"group"`            // Group/category for organization
+	Source      string    `json:"source,omitempty"` // "sqlite" or "vault"
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -20,6 +22,7 @@ type BashScriptCreate struct {
 	Description string `json:"description,omitempty"`
 	Content     string `json:"content" validate:"required"`
 	Filename    string `json:"filename,omitempty"`
+	Group       string `json:"group"` // Optional, defaults to "default"
 }
 
 // BashScriptUpdate represents the data that can be updated for a bash script
@@ -28,6 +31,7 @@ type BashScriptUpdate struct {
 	Description string `json:"description,omitempty"`
 	Content     string `json:"content,omitempty"`
 	Filename    string `json:"filename,omitempty"`
+	Group       string `json:"group,omitempty"`
 }
 
 // BashScriptResponse is the API response format
@@ -37,6 +41,8 @@ type BashScriptResponse struct {
 	Description string    `json:"description"`
 	Content     string    `json:"content,omitempty"` // Only included when specifically requested
 	Filename    string    `json:"filename"`
+	Group       string    `json:"group"`            // Group/category for organization
+	Source      string    `json:"source,omitempty"` // "sqlite" or "vault"
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -54,6 +60,8 @@ func (s *BashScript) ToResponse(includeContent bool) *BashScriptResponse {
 		Description: s.Description,
 		Content:     content,
 		Filename:    s.Filename,
+		Group:       s.Group,
+		Source:      s.Source,
 		CreatedAt:   s.CreatedAt,
 		UpdatedAt:   s.UpdatedAt,
 	}

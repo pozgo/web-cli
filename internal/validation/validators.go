@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -250,4 +251,222 @@ func ValidateCommand(command string) error {
 	}
 
 	return nil
+}
+
+// ValidateVaultAddress validates a Vault server address to prevent SSRF attacks
+// Only allows HTTPS URLs with valid public hostnames/IPs
+func ValidateVaultAddress(address string) error {
+	if address == "" {
+		return fmt.Errorf("vault address cannot be empty")
+	}
+
+	// Parse the URL
+	parsedURL, err := url.Parse(address)
+	if err != nil {
+		return fmt.Errorf("invalid vault address URL: %w", err)
+	}
+
+	// Require HTTP or HTTPS scheme
+	if parsedURL.Scheme != "https" && parsedURL.Scheme != "http" {
+		return fmt.Errorf("vault address must use http or https scheme")
+	}
+
+	// Get the hostname
+	hostname := parsedURL.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("vault address must include a hostname")
+	}
+
+	// Check for dangerous endpoints (SSRF protection)
+	// We allow private IPs for self-hosted Vault but block cloud metadata endpoints
+	if ip := net.ParseIP(hostname); ip != nil {
+		// Block link-local addresses (169.254.x.x) which include cloud metadata endpoints
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("vault address cannot be a link-local address (potential metadata endpoint)")
+		}
+		// Block unspecified addresses (0.0.0.0)
+		if ip.IsUnspecified() {
+			return fmt.Errorf("vault address cannot be an unspecified address")
+		}
+	} else {
+		// It's a hostname, validate format
+		if err := ValidateHostname(hostname); err != nil {
+			return fmt.Errorf("invalid vault hostname: %w", err)
+		}
+
+		// Block cloud metadata hostnames that could be used for SSRF
+		lowercaseHost := strings.ToLower(hostname)
+		blockedHosts := []string{
+			"metadata.google.internal",
+			"metadata.goog",
+			"metadata",
+			"instance-data",
+		}
+		for _, blocked := range blockedHosts {
+			if lowercaseHost == blocked || strings.HasSuffix(lowercaseHost, "."+blocked) {
+				return fmt.Errorf("vault address hostname is not allowed: %s", hostname)
+			}
+		}
+	}
+
+	// Validate port if specified
+	if portStr := parsedURL.Port(); portStr != "" {
+		// Port is already validated by url.Parse, but verify it's reasonable
+		var port int
+		if _, err := fmt.Sscanf(portStr, "%d", &port); err == nil {
+			if err := ValidatePort(port); err != nil {
+				return fmt.Errorf("invalid vault port: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// isPrivateOrReservedIP checks if an IP address is private, loopback, or reserved
+func isPrivateOrReservedIP(ip net.IP) bool {
+	// Check for loopback (127.0.0.0/8, ::1)
+	if ip.IsLoopback() {
+		return true
+	}
+
+	// Check for private ranges
+	if ip.IsPrivate() {
+		return true
+	}
+
+	// Check for link-local (169.254.0.0/16, fe80::/10)
+	if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	// Check for other reserved ranges
+	// 0.0.0.0/8 - Current network
+	// 10.0.0.0/8 - Private (handled by IsPrivate)
+	// 100.64.0.0/10 - Carrier-grade NAT
+	// 172.16.0.0/12 - Private (handled by IsPrivate)
+	// 192.0.0.0/24 - IETF Protocol Assignments
+	// 192.0.2.0/24 - Documentation
+	// 192.168.0.0/16 - Private (handled by IsPrivate)
+	// 198.51.100.0/24 - Documentation
+	// 203.0.113.0/24 - Documentation
+
+	ip4 := ip.To4()
+	if ip4 != nil {
+		// Carrier-grade NAT: 100.64.0.0/10
+		if ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+			return true
+		}
+		// Current network: 0.0.0.0/8
+		if ip4[0] == 0 {
+			return true
+		}
+		// IETF Protocol Assignments: 192.0.0.0/24
+		if ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ValidateVaultSecretPath validates a Vault secret path component to prevent path traversal
+func ValidateVaultSecretPath(path string) error {
+	if path == "" {
+		return fmt.Errorf("vault path cannot be empty")
+	}
+
+	// Check for path traversal sequences
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("vault path cannot contain path traversal sequences (..)")
+	}
+
+	// Check for absolute path indicators
+	if strings.HasPrefix(path, "/") {
+		return fmt.Errorf("vault path cannot start with /")
+	}
+
+	// Check for backslashes (Windows-style paths)
+	if strings.Contains(path, "\\") {
+		return fmt.Errorf("vault path cannot contain backslashes")
+	}
+
+	// Check for null bytes
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("vault path cannot contain null characters")
+	}
+
+	// Check for URL encoding that could be used to bypass filters
+	if strings.Contains(path, "%") {
+		return fmt.Errorf("vault path cannot contain URL-encoded characters")
+	}
+
+	// Validate allowed characters (alphanumeric, dash, underscore, dot, forward slash)
+	validPathRegex := regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
+	if !validPathRegex.MatchString(path) {
+		return fmt.Errorf("vault path contains invalid characters (allowed: alphanumeric, dash, underscore, dot, forward slash)")
+	}
+
+	// Check for consecutive slashes
+	if strings.Contains(path, "//") {
+		return fmt.Errorf("vault path cannot contain consecutive slashes")
+	}
+
+	// Limit path length
+	if len(path) > 512 {
+		return fmt.Errorf("vault path too long (max 512 characters)")
+	}
+
+	return nil
+}
+
+// ValidateVaultSecretName validates a Vault secret name to prevent path traversal
+func ValidateVaultSecretName(name string) error {
+	if name == "" {
+		return fmt.Errorf("vault secret name cannot be empty")
+	}
+
+	// Secret names should not contain path separators
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return fmt.Errorf("vault secret name cannot contain path separators")
+	}
+
+	// Check for path traversal
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("vault secret name cannot contain path traversal sequences")
+	}
+
+	// Check for null bytes
+	if strings.Contains(name, "\x00") {
+		return fmt.Errorf("vault secret name cannot contain null characters")
+	}
+
+	// Check for URL encoding
+	if strings.Contains(name, "%") {
+		return fmt.Errorf("vault secret name cannot contain URL-encoded characters")
+	}
+
+	// Validate allowed characters
+	validNameRegex := regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+	if !validNameRegex.MatchString(name) {
+		return fmt.Errorf("vault secret name contains invalid characters (allowed: alphanumeric, dash, underscore, dot)")
+	}
+
+	// Limit name length
+	if len(name) > 255 {
+		return fmt.Errorf("vault secret name too long (max 255 characters)")
+	}
+
+	return nil
+}
+
+// ValidateVaultGroupName validates a Vault group name
+func ValidateVaultGroupName(group string) error {
+	// Empty group is allowed (defaults to "default")
+	if group == "" {
+		return nil
+	}
+
+	// Group names follow same rules as secret names
+	return ValidateVaultSecretName(group)
 }

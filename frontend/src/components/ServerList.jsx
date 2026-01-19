@@ -17,6 +17,8 @@ import {
 import { Add, Delete, Edit } from '@mui/icons-material';
 import AddServerDialog from './AddServerDialog';
 import EditServerDialog from './EditServerDialog';
+import SourceChip from './shared/SourceChip';
+import GroupSelector from './shared/GroupSelector';
 
 /**
  * ServerList component - displays and manages servers
@@ -28,13 +30,17 @@ const ServerList = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedServer, setSelectedServer] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState('all');
 
   // Fetch servers from API
   const fetchServers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/servers');
+      const url = selectedGroup === 'all'
+        ? '/api/servers'
+        : `/api/servers?group=${encodeURIComponent(selectedGroup)}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch servers');
@@ -49,10 +55,10 @@ const ServerList = () => {
     }
   };
 
-  // Load servers on component mount
+  // Load servers on component mount or when group changes
   useEffect(() => {
     fetchServers();
-  }, []);
+  }, [selectedGroup]);
 
   // Handle server deletion
   const handleDelete = async (id) => {
@@ -101,13 +107,20 @@ const ServerList = () => {
         <Typography variant="h5" component="h2">
           Server Management
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenDialog(true)}
-        >
-          Add New Server
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <GroupSelector
+            resourceType="servers"
+            selectedGroup={selectedGroup}
+            onGroupChange={setSelectedGroup}
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setOpenDialog(true)}
+          >
+            Add New Server
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -135,17 +148,23 @@ const ServerList = () => {
                 <TableCell>IP Address / Hostname</TableCell>
                 <TableCell>Port</TableCell>
                 <TableCell>Username</TableCell>
+                <TableCell>Group</TableCell>
+                <TableCell>Source</TableCell>
                 <TableCell>Created At</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {servers.map((server) => (
-                <TableRow key={server.id}>
+                <TableRow key={server.id || server.name}>
                   <TableCell>{server.name || '-'}</TableCell>
                   <TableCell>{server.ip_address || '-'}</TableCell>
                   <TableCell>{server.port || 22}</TableCell>
                   <TableCell>{server.username || 'root'}</TableCell>
+                  <TableCell>{server.group || 'default'}</TableCell>
+                  <TableCell>
+                    <SourceChip source={server.source} />
+                  </TableCell>
                   <TableCell>
                     {new Date(server.created_at).toLocaleString()}
                   </TableCell>
@@ -155,6 +174,8 @@ const ServerList = () => {
                       onClick={() => handleEdit(server)}
                       aria-label="edit"
                       sx={{ mr: 1 }}
+                      disabled={server.source === 'vault'}
+                      title={server.source === 'vault' ? 'Vault items cannot be edited here' : 'Edit'}
                     >
                       <Edit />
                     </IconButton>
@@ -162,6 +183,8 @@ const ServerList = () => {
                       color="error"
                       onClick={() => handleDelete(server.id)}
                       aria-label="delete"
+                      disabled={server.source === 'vault'}
+                      title={server.source === 'vault' ? 'Vault items cannot be deleted here' : 'Delete'}
                     >
                       <Delete />
                     </IconButton>

@@ -24,8 +24,9 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material';
-import { PlayArrow, ArrowBack, ExpandMore, Code, Cloud, Save } from '@mui/icons-material';
+import { PlayArrow, ArrowBack, ExpandMore, Code, Cloud, Save, Storage, Lock } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import GroupSelector from './shared/GroupSelector';
 
 /**
  * RemoteScripts component - execute stored bash scripts on remote servers
@@ -59,6 +60,10 @@ const RemoteScripts = () => {
   const [presetName, setPresetName] = useState('');
   const [presetDescription, setPresetDescription] = useState('');
   const [savingPreset, setSavingPreset] = useState(false);
+  const [scriptGroupFilter, setScriptGroupFilter] = useState('all');
+  const [serverGroupFilter, setServerGroupFilter] = useState('all');
+  const [keyGroupFilter, setKeyGroupFilter] = useState('all');
+  const [envVarGroupFilter, setEnvVarGroupFilter] = useState('all');
 
   // Fetch data on mount
   useEffect(() => {
@@ -73,7 +78,10 @@ const RemoteScripts = () => {
   // Update available users when server selection changes
   useEffect(() => {
     if (selectedServer) {
-      const server = servers.find(s => s.id === parseInt(selectedServer, 10));
+      // Find server by ID for SQLite items or by name for Vault items
+      const server = servers.find(s =>
+        (s.source === 'vault' ? s.name === selectedServer : s.id === parseInt(selectedServer, 10))
+      );
       if (server && server.username) {
         // Add server's username to available users if not already present
         const userSet = new Set(baseUsers);
@@ -110,8 +118,8 @@ const RemoteScripts = () => {
       if (response.ok) {
         const data = await response.json();
         setEnvVars(data || []);
-        // Select all by default
-        setSelectedEnvVarIds((data || []).map(v => v.id));
+        // Select all by default - use name for Vault items, ID for SQLite items
+        setSelectedEnvVarIds((data || []).map(v => v.source === 'vault' ? v.name : v.id));
       }
     } catch (err) {
       console.error('Failed to fetch env vars:', err);
@@ -324,14 +332,74 @@ const RemoteScripts = () => {
     setSuccess(null);
     setOutput('');
 
+    // Find the selected objects to determine their source
+    const selectedScriptObj = scripts.find(s =>
+      (s.source === 'vault' ? s.name === selectedScriptId : s.id === parseInt(selectedScriptId, 10))
+    );
+    const selectedServerObj = servers.find(s =>
+      (s.source === 'vault' ? s.name === selectedServer : s.id === parseInt(selectedServer, 10))
+    );
+    const selectedSSHKeyObj = sshKeys.find(k =>
+      (k.source === 'vault' ? k.name === selectedSSHKey : k.id === parseInt(selectedSSHKey, 10))
+    );
+
     const payload = {
-      script_id: parseInt(selectedScriptId, 10),
       user: user || 'root',
       is_remote: true,
-      server_id: parseInt(selectedServer, 10),
-      ssh_key_id: parseInt(selectedSSHKey, 10),
-      env_var_ids: selectedEnvVarIds,
     };
+
+    // For script: use name for Vault items, ID for SQLite items
+    if (selectedScriptObj) {
+      if (selectedScriptObj.source === 'vault') {
+        payload.script_name = selectedScriptObj.name;
+        payload.script_group = selectedScriptObj.group || 'default';
+      } else {
+        payload.script_id = selectedScriptObj.id;
+      }
+    }
+
+    // For server: use name for Vault items, ID for SQLite items
+    if (selectedServerObj) {
+      if (selectedServerObj.source === 'vault') {
+        payload.server_name = selectedServerObj.name;
+        payload.server_group = selectedServerObj.group || 'default';
+      } else {
+        payload.server_id = selectedServerObj.id;
+      }
+    }
+
+    // For SSH key: use name for Vault items, ID for SQLite items
+    if (selectedSSHKeyObj) {
+      if (selectedSSHKeyObj.source === 'vault') {
+        payload.ssh_key_name = selectedSSHKeyObj.name;
+        payload.ssh_key_group = selectedSSHKeyObj.group || 'default';
+      } else {
+        payload.ssh_key_id = selectedSSHKeyObj.id;
+      }
+    }
+
+    // For env vars: separate SQLite IDs from Vault names (with groups)
+    const sqliteEnvVarIds = [];
+    const vaultEnvVarNames = [];
+    const vaultEnvVarGroups = [];
+    selectedEnvVarIds.forEach(id => {
+      const envVar = envVars.find(v => v.id === id || v.name === id);
+      if (envVar) {
+        if (envVar.source === 'vault') {
+          vaultEnvVarNames.push(envVar.name);
+          vaultEnvVarGroups.push(envVar.group || 'default');
+        } else if (envVar.id) {
+          sqliteEnvVarIds.push(envVar.id);
+        }
+      }
+    });
+    if (sqliteEnvVarIds.length > 0) {
+      payload.env_var_ids = sqliteEnvVarIds;
+    }
+    if (vaultEnvVarNames.length > 0) {
+      payload.env_var_names = vaultEnvVarNames;
+      payload.env_var_groups = vaultEnvVarGroups;
+    }
 
     if (password) {
       payload.ssh_password = password;
@@ -436,17 +504,34 @@ const RemoteScripts = () => {
   // Get selected server details for display
   const getSelectedServerInfo = () => {
     if (!selectedServer) return null;
-    return servers.find(s => s.id === parseInt(selectedServer, 10));
+    return servers.find(s => s.source === 'vault' ? s.name === selectedServer : s.id === parseInt(selectedServer, 10));
   };
 
   // Get selected SSH key details for display
   const getSelectedKeyInfo = () => {
     if (!selectedSSHKey) return null;
-    return sshKeys.find(k => k.id === parseInt(selectedSSHKey, 10));
+    return sshKeys.find(k => k.source === 'vault' ? k.name === selectedSSHKey : k.id === parseInt(selectedSSHKey, 10));
   };
 
   const serverInfo = getSelectedServerInfo();
   const keyInfo = getSelectedKeyInfo();
+
+  // Filter resources by group
+  const filteredScripts = scriptGroupFilter === 'all'
+    ? scripts
+    : scripts.filter(s => (s.group || 'default') === scriptGroupFilter);
+
+  const filteredServers = serverGroupFilter === 'all'
+    ? servers
+    : servers.filter(s => (s.group || 'default') === serverGroupFilter);
+
+  const filteredSSHKeys = keyGroupFilter === 'all'
+    ? sshKeys
+    : sshKeys.filter(k => (k.group || 'default') === keyGroupFilter);
+
+  const filteredEnvVars = envVarGroupFilter === 'all'
+    ? envVars
+    : envVars.filter(v => (v.group || 'default') === envVarGroupFilter);
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -493,75 +578,126 @@ const RemoteScripts = () => {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Select Script</InputLabel>
-                <Select
-                  value={selectedScriptId}
-                  onChange={handleScriptSelect}
-                  label="Select Script"
-                  disabled={loading || loadingScripts}
-                >
-                  <MenuItem value="">
-                    <em>Choose a script...</em>
-                  </MenuItem>
-                  {scripts.map((script) => (
-                    <MenuItem key={script.id} value={script.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Code fontSize="small" />
-                        {script.name}
-                        {script.filename && (
-                          <Chip label={script.filename} size="small" variant="outlined" />
-                        )}
-                      </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <GroupSelector
+                  resourceType="bash-scripts"
+                  selectedGroup={scriptGroupFilter}
+                  onGroupChange={setScriptGroupFilter}
+                  size="small"
+                />
+                <FormControl fullWidth>
+                  <InputLabel>Select Script</InputLabel>
+                  <Select
+                    value={selectedScriptId}
+                    onChange={handleScriptSelect}
+                    label="Select Script"
+                    disabled={loading || loadingScripts}
+                  >
+                    <MenuItem value="">
+                      <em>Choose a script...</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {filteredScripts.map((script) => (
+                      <MenuItem key={script.source === 'vault' ? `vault-${script.name}` : script.id} value={script.source === 'vault' ? script.name : script.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Code fontSize="small" />
+                            {script.name}
+                            {script.filename && (
+                              <Chip label={script.filename} size="small" variant="outlined" />
+                            )}
+                          </Box>
+                          {script.source && (
+                            script.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Target Server</InputLabel>
-                <Select
-                  value={selectedServer}
-                  onChange={(e) => setSelectedServer(e.target.value)}
-                  label="Target Server"
-                  disabled={loading}
-                >
-                  <MenuItem value="">
-                    <em>Choose a server...</em>
-                  </MenuItem>
-                  {servers.map((server) => (
-                    <MenuItem key={server.id} value={server.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Cloud fontSize="small" />
-                        {server.name} ({server.hostname}:{server.port})
-                      </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <GroupSelector
+                  resourceType="servers"
+                  selectedGroup={serverGroupFilter}
+                  onGroupChange={setServerGroupFilter}
+                  size="small"
+                />
+                <FormControl fullWidth>
+                  <InputLabel>Target Server</InputLabel>
+                  <Select
+                    value={selectedServer}
+                    onChange={(e) => setSelectedServer(e.target.value)}
+                    label="Target Server"
+                    disabled={loading}
+                  >
+                    <MenuItem value="">
+                      <em>Choose a server...</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {filteredServers.map((server) => (
+                      <MenuItem key={server.source === 'vault' ? `vault-${server.name}` : server.id} value={server.source === 'vault' ? server.name : server.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Cloud fontSize="small" />
+                            {server.name} ({server.ip_address || server.hostname}:{server.port})
+                          </Box>
+                          {server.source && (
+                            server.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>SSH Key</InputLabel>
-                <Select
-                  value={selectedSSHKey}
-                  onChange={(e) => setSelectedSSHKey(e.target.value)}
-                  label="SSH Key"
-                  disabled={loading}
-                >
-                  <MenuItem value="">
-                    <em>Choose an SSH key...</em>
-                  </MenuItem>
-                  {sshKeys.map((key) => (
-                    <MenuItem key={key.id} value={key.id}>
-                      {key.name}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <GroupSelector
+                  resourceType="keys"
+                  selectedGroup={keyGroupFilter}
+                  onGroupChange={setKeyGroupFilter}
+                  size="small"
+                />
+                <FormControl fullWidth>
+                  <InputLabel>SSH Key</InputLabel>
+                  <Select
+                    value={selectedSSHKey}
+                    onChange={(e) => setSelectedSSHKey(e.target.value)}
+                    label="SSH Key"
+                    disabled={loading}
+                  >
+                    <MenuItem value="">
+                      <em>Choose an SSH key...</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {filteredSSHKeys.map((key) => (
+                      <MenuItem key={key.source === 'vault' ? `vault-${key.name}` : key.id} value={key.source === 'vault' ? key.name : key.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <span>{key.name}</span>
+                          {key.source && (
+                            key.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
@@ -583,6 +719,14 @@ const RemoteScripts = () => {
             </Grid>
 
             <Grid item xs={12}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                <GroupSelector
+                  resourceType="env-variables"
+                  selectedGroup={envVarGroupFilter}
+                  onGroupChange={setEnvVarGroupFilter}
+                  size="small"
+                />
+              </Box>
               <FormControl fullWidth>
                 <InputLabel>Environment Variables</InputLabel>
                 <Select
@@ -598,36 +742,48 @@ const RemoteScripts = () => {
                       ) : selected.length === envVars.length ? (
                         <Chip size="small" label={`All (${envVars.length})`} />
                       ) : (
-                        selected.map((id) => {
-                          const envVar = envVars.find(v => v.id === id);
+                        selected.map((val) => {
+                          const envVar = envVars.find(v => (v.source === 'vault' ? v.name === val : v.id === val));
                           return envVar ? (
-                            <Chip key={id} size="small" label={envVar.name} />
+                            <Chip key={val} size="small" label={envVar.name} />
                           ) : null;
                         })
                       )}
                     </Box>
                   )}
                 >
-                  {envVars.map((envVar) => (
-                    <MenuItem key={envVar.id} value={envVar.id}>
-                      <Checkbox checked={selectedEnvVarIds.includes(envVar.id)} />
-                      <Box sx={{ ml: 1 }}>
-                        <Typography>{envVar.name}</Typography>
-                        {envVar.description && (
-                          <Typography variant="caption" color="text.secondary">
-                            {envVar.description}
-                          </Typography>
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))}
+                  {filteredEnvVars.map((envVar) => {
+                    const envVarValue = envVar.source === 'vault' ? envVar.name : envVar.id;
+                    return (
+                      <MenuItem key={envVar.source === 'vault' ? `vault-${envVar.name}` : envVar.id} value={envVarValue}>
+                        <Checkbox checked={selectedEnvVarIds.includes(envVarValue)} />
+                        <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <Box>
+                            <Typography>{envVar.name}</Typography>
+                            {envVar.description && (
+                              <Typography variant="caption" color="text.secondary">
+                                {envVar.description}
+                              </Typography>
+                            )}
+                          </Box>
+                          {envVar.source && (
+                            envVar.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
               <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
                 <Button
                   size="small"
-                  onClick={() => setSelectedEnvVarIds(envVars.map(v => v.id))}
-                  disabled={loading || selectedEnvVarIds.length === envVars.length}
+                  onClick={() => setSelectedEnvVarIds(filteredEnvVars.map(v => v.source === 'vault' ? v.name : v.id))}
+                  disabled={loading || selectedEnvVarIds.length === filteredEnvVars.length}
                 >
                   Select All
                 </Button>

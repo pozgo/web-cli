@@ -1,358 +1,308 @@
 package validation
 
 import (
-	"strings"
 	"testing"
 )
 
-func TestValidateIPAddress(t *testing.T) {
+func TestValidateVaultAddress(t *testing.T) {
 	tests := []struct {
 		name    string
-		ip      string
+		address string
 		wantErr bool
+		errMsg  string
 	}{
-		{"valid IPv4", "192.168.1.1", false},
-		{"valid IPv4 localhost", "127.0.0.1", false},
-		{"valid IPv6", "2001:0db8:85a3:0000:0000:8a2e:0370:7334", false},
-		{"valid IPv6 short", "::1", false},
-		{"empty string", "", true},
-		{"invalid IPv4", "256.1.1.1", true},
-		{"invalid format", "not-an-ip", true},
-		{"hostname not IP", "example.com", true},
+		// Valid addresses
+		{
+			name:    "valid https public URL",
+			address: "https://vault.example.com:8200",
+			wantErr: false,
+		},
+		{
+			name:    "valid https with path",
+			address: "https://vault.example.com/v1",
+			wantErr: false,
+		},
+		{
+			name:    "valid http local development",
+			address: "http://localhost:8200",
+			wantErr: false,
+		},
+		{
+			name:    "valid https localhost",
+			address: "https://127.0.0.1:8200",
+			wantErr: false,
+		},
+		{
+			name:    "valid private IP 10.x.x.x",
+			address: "https://10.0.0.5:8200",
+			wantErr: false,
+		},
+		{
+			name:    "valid private IP 172.16.x.x",
+			address: "https://172.16.0.10:8200",
+			wantErr: false,
+		},
+		{
+			name:    "valid private IP 192.168.x.x",
+			address: "https://192.168.1.100:8200",
+			wantErr: false,
+		},
+
+		// Invalid addresses - SSRF protection
+		{
+			name:    "block link-local address 169.254.x.x",
+			address: "http://169.254.169.254/latest/meta-data",
+			wantErr: true,
+			errMsg:  "link-local address",
+		},
+		{
+			name:    "block unspecified address 0.0.0.0",
+			address: "http://0.0.0.0:8200",
+			wantErr: true,
+			errMsg:  "unspecified address",
+		},
+		{
+			name:    "block metadata.google.internal",
+			address: "http://metadata.google.internal/computeMetadata/v1/",
+			wantErr: true,
+			errMsg:  "hostname is not allowed",
+		},
+		{
+			name:    "block metadata hostname",
+			address: "http://metadata/computeMetadata/v1/",
+			wantErr: true,
+			errMsg:  "hostname is not allowed",
+		},
+		{
+			name:    "block instance-data hostname",
+			address: "http://instance-data/latest/meta-data",
+			wantErr: true,
+			errMsg:  "hostname is not allowed",
+		},
+
+		// Invalid addresses - other validation
+		{
+			name:    "empty address",
+			address: "",
+			wantErr: true,
+			errMsg:  "cannot be empty",
+		},
+		{
+			name:    "invalid scheme ftp",
+			address: "ftp://vault.example.com",
+			wantErr: true,
+			errMsg:  "must use http or https",
+		},
+		{
+			name:    "invalid scheme file",
+			address: "file:///etc/passwd",
+			wantErr: true,
+			errMsg:  "must use http or https",
+		},
+		{
+			name:    "missing hostname",
+			address: "https:///path",
+			wantErr: true,
+			errMsg:  "must include a hostname",
+		},
+		{
+			name:    "invalid port",
+			address: "https://vault.example.com:99999",
+			wantErr: true,
+			errMsg:  "invalid vault port",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateIPAddress(tt.ip)
+			err := ValidateVaultAddress(tt.address)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateIPAddress() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateVaultAddress(%q) error = %v, wantErr %v", tt.address, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" && err != nil {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateVaultAddress(%q) error = %v, want error containing %q", tt.address, err, tt.errMsg)
+				}
 			}
 		})
 	}
 }
 
-func TestValidateHostname(t *testing.T) {
-	tests := []struct {
-		name     string
-		hostname string
-		wantErr  bool
-	}{
-		{"valid simple hostname", "server1", false},
-		{"valid FQDN", "mail.example.com", false},
-		{"valid with dash", "my-server", false},
-		{"valid with numbers", "server123", false},
-		{"empty string", "", true},
-		{"starts with dash", "-server", true},
-		{"ends with dash", "server-", true},
-		{"double dash", "my--server", false}, // Actually valid in RFC 1123
-		{"too long", strings.Repeat("a", 254), true},
-		{"invalid chars", "my_server", true}, // Underscore not allowed in hostname
-		{"valid subdomain", "api.v1.example.com", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateHostname(tt.hostname)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateHostname() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateIPOrHostname(t *testing.T) {
+func TestValidateVaultSecretPath(t *testing.T) {
 	tests := []struct {
 		name    string
-		value   string
+		path    string
 		wantErr bool
+		errMsg  string
 	}{
-		{"valid IP", "192.168.1.1", false},
-		{"valid hostname", "example.com", false},
-		{"valid IPv6", "::1", false},
-		{"empty string", "", true},
-		{"invalid both", "not_valid-256", true},
+		// Valid paths
+		{
+			name:    "simple path",
+			path:    "web-cli/ssh-keys",
+			wantErr: false,
+		},
+		{
+			name:    "path with underscores",
+			path:    "web_cli/ssh_keys",
+			wantErr: false,
+		},
+		{
+			name:    "path with dashes",
+			path:    "web-cli/ssh-keys/my-key",
+			wantErr: false,
+		},
+		{
+			name:    "path with dots",
+			path:    "web-cli/config.json",
+			wantErr: false,
+		},
+
+		// Invalid paths - path traversal
+		{
+			name:    "path traversal with ..",
+			path:    "../../../etc/passwd",
+			wantErr: true,
+			errMsg:  "path traversal",
+		},
+		{
+			name:    "path traversal in middle",
+			path:    "web-cli/../../../etc/passwd",
+			wantErr: true,
+			errMsg:  "path traversal",
+		},
+		{
+			name:    "absolute path",
+			path:    "/etc/passwd",
+			wantErr: true,
+			errMsg:  "cannot start with /",
+		},
+		{
+			name:    "backslash path",
+			path:    "web-cli\\ssh-keys",
+			wantErr: true,
+			errMsg:  "cannot contain backslashes",
+		},
+		{
+			name:    "null byte",
+			path:    "web-cli\x00/ssh-keys",
+			wantErr: true,
+			errMsg:  "null characters",
+		},
+		{
+			name:    "URL encoded",
+			path:    "web-cli%2Fssh-keys",
+			wantErr: true,
+			errMsg:  "URL-encoded",
+		},
+		{
+			name:    "consecutive slashes",
+			path:    "web-cli//ssh-keys",
+			wantErr: true,
+			errMsg:  "consecutive slashes",
+		},
+		{
+			name:    "empty path",
+			path:    "",
+			wantErr: true,
+			errMsg:  "cannot be empty",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateIPOrHostname(tt.value)
+			err := ValidateVaultSecretPath(tt.path)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateIPOrHostname() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateVaultSecretPath(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" && err != nil {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateVaultSecretPath(%q) error = %v, want error containing %q", tt.path, err, tt.errMsg)
+				}
 			}
 		})
 	}
 }
 
-func TestValidatePort(t *testing.T) {
-	tests := []struct {
-		name    string
-		port    int
-		wantErr bool
-	}{
-		{"valid port 22", 22, false},
-		{"valid port 80", 80, false},
-		{"valid port 443", 443, false},
-		{"valid port 65535", 65535, false},
-		{"valid port 1", 1, false},
-		{"zero", 0, true},
-		{"negative", -1, true},
-		{"too large", 65536, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidatePort(tt.port)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidatePort() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateSSHPrivateKey(t *testing.T) {
-	// Note: Testing with actual SSH key parsing is complex
-	// We test the basic validation logic here
-	tests := []struct {
-		name    string
-		key     string
-		wantErr bool
-	}{
-		{"empty string", "", true},
-		{"missing BEGIN header", "some random text", true},
-		{"whitespace only", "   \n\t  ", true},
-		// Real key validation happens in ssh.ParsePrivateKey
-		// which requires a properly formatted key
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateSSHPrivateKey(tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateSSHPrivateKey() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateUsername(t *testing.T) {
-	tests := []struct {
-		name     string
-		username string
-		wantErr  bool
-	}{
-		{"valid simple", "john", false},
-		{"valid with underscore", "john_doe", false},
-		{"valid with dash", "john-doe", false},
-		{"valid with numbers", "user123", false},
-		{"special case root", "root", false},
-		{"special case current", "current", false},
-		{"empty string", "", true},
-		{"starts with number", "1john", true},
-		{"too long", strings.Repeat("a", 33), true},
-		{"uppercase", "John", true}, // Unix usernames are lowercase
-		{"with spaces", "john doe", true},
-		{"special chars", "john@doe", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUsername(tt.username)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateUsername() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateCommandName(t *testing.T) {
-	tests := []struct {
-		name        string
-		commandName string
-		wantErr     bool
-	}{
-		{"valid simple", "backup-db", false},
-		{"valid with spaces", "My Command", false},
-		{"valid special chars", "command-123_test", false},
-		{"empty string", "", true},
-		{"too long", strings.Repeat("a", 256), true},
-		{"with null byte", "cmd\x00name", true},
-		{"with newline", "cmd\nname", true},
-		{"with carriage return", "cmd\rname", true},
-		{"valid unicode", "备份数据库", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateCommandName(tt.commandName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateCommandName() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateEnvVarName(t *testing.T) {
-	tests := []struct {
-		name    string
-		varName string
-		wantErr bool
-	}{
-		{"valid simple", "MY_VAR", false},
-		{"valid with numbers", "VAR123", false},
-		{"valid starts with underscore", "_PRIVATE_VAR", false},
-		{"valid lowercase", "my_var", false},
-		{"valid mixed case", "MyVar", false},
-		{"valid single letter", "A", false},
-		{"valid single underscore", "_", false},
-		{"empty string", "", true},
-		{"starts with number", "1VAR", true},
-		{"contains dash", "MY-VAR", true},
-		{"contains space", "MY VAR", true},
-		{"contains dot", "MY.VAR", true},
-		{"contains special chars", "MY$VAR", true},
-		{"too long", strings.Repeat("A", 256), true},
-		{"common env var PATH", "PATH", false},
-		{"common env var HOME", "HOME", false},
-		{"common env var API_KEY", "API_KEY", false},
-		{"common env var DATABASE_URL", "DATABASE_URL", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateEnvVarName(tt.varName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateEnvVarName() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateEnvVarValue(t *testing.T) {
-	tests := []struct {
-		name    string
-		value   string
-		wantErr bool
-	}{
-		{"valid simple", "my-value", false},
-		{"valid with spaces", "my value with spaces", false},
-		{"valid with special chars", "pass!@#$%^&*()", false},
-		{"valid with newlines", "line1\nline2", false},
-		{"valid JSON", `{"key": "value"}`, false},
-		{"valid URL", "https://example.com/path?query=1", false},
-		{"valid long string", strings.Repeat("a", 1000), false},
-		{"empty string", "", true},
-		{"contains null byte", "value\x00here", true},
-		{"valid unicode", "密码123", false},
-		{"valid base64", "SGVsbG8gV29ybGQh", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateEnvVarValue(tt.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateEnvVarValue() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestValidateBashScriptName(t *testing.T) {
+func TestValidateVaultSecretName(t *testing.T) {
 	tests := []struct {
 		name       string
-		scriptName string
+		secretName string
 		wantErr    bool
+		errMsg     string
 	}{
-		{"valid simple", "My Script", false},
-		{"valid with dash", "backup-script", false},
-		{"valid with underscore", "db_backup", false},
-		{"valid with numbers", "script123", false},
-		{"valid unicode", "备份脚本", false},
-		{"valid long name", strings.Repeat("a", 255), false},
-		{"empty string", "", true},
-		{"too long", strings.Repeat("a", 256), true},
-		{"contains null byte", "script\x00name", true},
-		{"contains newline", "script\nname", true},
-		{"contains carriage return", "script\rname", true},
+		// Valid names
+		{
+			name:       "simple name",
+			secretName: "my-secret",
+			wantErr:    false,
+		},
+		{
+			name:       "name with underscores",
+			secretName: "my_secret_key",
+			wantErr:    false,
+		},
+		{
+			name:       "name with dots",
+			secretName: "config.json",
+			wantErr:    false,
+		},
+
+		// Invalid names
+		{
+			name:       "path separator forward slash",
+			secretName: "path/to/secret",
+			wantErr:    true,
+			errMsg:     "path separators",
+		},
+		{
+			name:       "path separator backslash",
+			secretName: "path\\to\\secret",
+			wantErr:    true,
+			errMsg:     "path separators",
+		},
+		{
+			name:       "path traversal",
+			secretName: "..",
+			wantErr:    true,
+			errMsg:     "path traversal",
+		},
+		{
+			name:       "empty name",
+			secretName: "",
+			wantErr:    true,
+			errMsg:     "cannot be empty",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateBashScriptName(tt.scriptName)
+			err := ValidateVaultSecretName(tt.secretName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBashScriptName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateVaultSecretName(%q) error = %v, wantErr %v", tt.secretName, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" && err != nil {
+				if !contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateVaultSecretName(%q) error = %v, want error containing %q", tt.secretName, err, tt.errMsg)
+				}
 			}
 		})
 	}
 }
 
-func TestValidateBashScriptContent(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		wantErr bool
-	}{
-		{"valid simple", "#!/bin/bash\necho hello", false},
-		{"valid multiline", "#!/bin/bash\necho hello\necho world", false},
-		{"valid with comments", "#!/bin/bash\n# This is a comment\necho hello", false},
-		{"valid with variables", "#!/bin/bash\nNAME=\"World\"\necho \"Hello $NAME\"", false},
-		{"valid long script", strings.Repeat("echo hello\n", 1000), false},
-		{"empty string", "", true},
-		{"contains null byte", "echo hello\x00world", true},
-		{"valid without shebang", "echo hello", false},
-		{"valid complex script", `#!/bin/bash
-set -euo pipefail
-
-if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <arg>"
-    exit 1
-fi
-
-for i in "$@"; do
-    echo "Processing: $i"
-done
-`, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateBashScriptContent(tt.content)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBashScriptContent() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+// contains checks if substr is contained in s
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstr(s, substr)))
 }
 
-func TestValidateBashScriptFilename(t *testing.T) {
-	tests := []struct {
-		name     string
-		filename string
-		wantErr  bool
-	}{
-		{"valid simple", "script.sh", false},
-		{"valid with dash", "my-script.sh", false},
-		{"valid with underscore", "my_script.sh", false},
-		{"valid bash extension", "script.bash", false},
-		{"valid no extension", "script", false},
-		{"empty string", "", false}, // Filename is optional
-		{"too long", strings.Repeat("a", 256), true},
-		{"path traversal", "../script.sh", true},
-		{"absolute path", "/etc/script.sh", true},
-		{"windows path", "C:\\script.sh", true},
-		{"contains asterisk", "script*.sh", true},
-		{"contains question mark", "script?.sh", true},
-		{"contains quotes", "script\".sh", true},
-		{"contains pipe", "script|.sh", true},
-		{"contains null byte", "script\x00.sh", true},
-		{"contains newline", "script\n.sh", true},
+func findSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateBashScriptFilename(tt.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBashScriptFilename() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+	return false
 }

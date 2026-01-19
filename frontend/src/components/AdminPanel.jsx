@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import {
   Container,
   Typography,
@@ -18,25 +18,59 @@ import {
   Tab,
 } from '@mui/material';
 import { Add, Delete, Edit, ArrowBack } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AddKeyDialog from './AddKeyDialog';
 import EditKeyDialog from './EditKeyDialog';
 import ServerList from './ServerList';
 import LocalUserList from './LocalUserList';
 import EnvVariableList from './EnvVariableList';
+import VaultSettings from './VaultSettings';
+import SourceChip from './shared/SourceChip';
+import GroupSelector from './shared/GroupSelector';
+
+/**
+ * Error Boundary for VaultSettings
+ */
+class VaultErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('VaultSettings error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Alert severity="error">
+          Error loading Vault Settings: {this.state.error?.message || 'Unknown error'}
+        </Alert>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * AdminPanel component - displays and manages SSH keys and servers
  */
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const [tabValue, setTabValue] = useState(0);
+  const location = useLocation();
+  const [tabValue, setTabValue] = useState(location.state?.tab || 0);
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState('all');
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {
@@ -48,7 +82,10 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/keys');
+      const url = selectedGroup === 'all'
+        ? '/api/keys'
+        : `/api/keys?group=${encodeURIComponent(selectedGroup)}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch SSH keys');
@@ -63,10 +100,17 @@ const AdminPanel = () => {
     }
   };
 
-  // Load keys on component mount
+  // Update tab when navigating with state (e.g., from VaultIcon)
+  useEffect(() => {
+    if (location.state?.tab !== undefined) {
+      setTabValue(location.state.tab);
+    }
+  }, [location.state]);
+
+  // Load keys on component mount or when group changes
   useEffect(() => {
     fetchKeys();
-  }, []);
+  }, [selectedGroup]);
 
   // Handle key deletion
   const handleDelete = async (id) => {
@@ -130,6 +174,7 @@ const AdminPanel = () => {
             <Tab label="Servers" />
             <Tab label="Local Users" />
             <Tab label="Environment Variables" />
+            <Tab label="Vault Integration" />
           </Tabs>
         </Paper>
 
@@ -139,13 +184,20 @@ const AdminPanel = () => {
               <Typography variant="h5" component="h2">
                 SSH Key Management
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => setOpenDialog(true)}
-              >
-                Add New Key
-              </Button>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <GroupSelector
+                  resourceType="keys"
+                  selectedGroup={selectedGroup}
+                  onGroupChange={setSelectedGroup}
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setOpenDialog(true)}
+                >
+                  Add New Key
+                </Button>
+              </Box>
             </Box>
 
             {error && (
@@ -171,13 +223,15 @@ const AdminPanel = () => {
                     <TableRow>
                       <TableCell>Name</TableCell>
                       <TableCell>Private Key</TableCell>
+                      <TableCell>Group</TableCell>
+                      <TableCell>Source</TableCell>
                       <TableCell>Created At</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {keys.map((key) => (
-                      <TableRow key={key.id}>
+                      <TableRow key={key.id || key.name}>
                         <TableCell>{key.name}</TableCell>
                         <TableCell>
                           <Box
@@ -193,6 +247,10 @@ const AdminPanel = () => {
                             {key.private_key}
                           </Box>
                         </TableCell>
+                        <TableCell>{key.group || 'default'}</TableCell>
+                        <TableCell>
+                          <SourceChip source={key.source} />
+                        </TableCell>
                         <TableCell>
                           {new Date(key.created_at).toLocaleString()}
                         </TableCell>
@@ -202,6 +260,8 @@ const AdminPanel = () => {
                             onClick={() => handleEdit(key)}
                             aria-label="edit"
                             sx={{ mr: 1 }}
+                            disabled={key.source === 'vault'}
+                            title={key.source === 'vault' ? 'Vault items cannot be edited here' : 'Edit'}
                           >
                             <Edit />
                           </IconButton>
@@ -209,6 +269,8 @@ const AdminPanel = () => {
                             color="error"
                             onClick={() => handleDelete(key.id)}
                             aria-label="delete"
+                            disabled={key.source === 'vault'}
+                            title={key.source === 'vault' ? 'Vault items cannot be deleted here' : 'Delete'}
                           >
                             <Delete />
                           </IconButton>
@@ -227,6 +289,12 @@ const AdminPanel = () => {
         {tabValue === 2 && <LocalUserList />}
 
         {tabValue === 3 && <EnvVariableList />}
+
+        {tabValue === 4 && (
+          <VaultErrorBoundary>
+            <VaultSettings />
+          </VaultErrorBoundary>
+        )}
       </Box>
 
       <AddKeyDialog

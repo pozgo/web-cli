@@ -2,10 +2,14 @@ package middleware
 
 import (
 	"crypto/subtle"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
 )
+
+// ErrAuthMisconfigured is returned when authentication is enabled but credentials are missing
+var ErrAuthMisconfigured = errors.New("authentication is enabled but no credentials are configured: set AUTH_USERNAME and AUTH_PASSWORD, or AUTH_API_TOKEN")
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
@@ -27,6 +31,24 @@ func LoadAuthConfig() *AuthConfig {
 		Password: os.Getenv("AUTH_PASSWORD"),
 		APIToken: os.Getenv("AUTH_API_TOKEN"),
 	}
+}
+
+// Validate checks if the authentication configuration is valid
+// Returns an error if auth is enabled but no credentials are configured
+func (c *AuthConfig) Validate() error {
+	if !c.Enabled {
+		return nil // Auth disabled, no validation needed
+	}
+
+	// When auth is enabled, at least one auth method must be configured
+	hasBasicAuth := c.Username != "" && c.Password != ""
+	hasAPIToken := c.APIToken != ""
+
+	if !hasBasicAuth && !hasAPIToken {
+		return ErrAuthMisconfigured
+	}
+
+	return nil
 }
 
 // BasicAuth provides HTTP Basic Authentication middleware

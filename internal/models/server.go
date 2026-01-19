@@ -10,6 +10,8 @@ type Server struct {
 	IPAddress string    `json:"ip_address,omitempty"` // IP address
 	Port      int       `json:"port"`                 // SSH port (default: 22)
 	Username  string    `json:"username"`             // SSH username for remote connections
+	Group     string    `json:"group"`                // Group/category for organization
+	Source    string    `json:"source,omitempty"`     // "sqlite" or "vault"
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -21,6 +23,7 @@ type ServerCreate struct {
 	IPAddress string `json:"ip_address,omitempty"`
 	Port      int    `json:"port"`     // Optional, defaults to 22 if not provided
 	Username  string `json:"username"` // SSH username for remote connections
+	Group     string `json:"group"`    // Optional, defaults to "default"
 }
 
 // ServerUpdate represents the data that can be updated for a server
@@ -29,4 +32,5 @@ type ServerUpdate struct {
 	IPAddress string `json:"ip_address,omitempty"`
 	Port      int    `json:"port,omitempty"`
 	Username  string `json:"username,omitempty"`
+	Group     string `json:"group,omitempty"`
 }

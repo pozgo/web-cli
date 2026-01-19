@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/pozgo/web-cli/assets"
+	"github.com/pozgo/web-cli/internal/audit"
 	"github.com/pozgo/web-cli/internal/config"
 	"github.com/pozgo/web-cli/internal/database"
 	"github.com/pozgo/web-cli/internal/server"
@@ -93,11 +94,27 @@ func main() {
 		log.Printf("Database schema version: %d", version)
 	}
 
+	// Initialize audit logging
+	if cfg.AuditLogPath != "" {
+		auditLogger, err := audit.Initialize(cfg.AuditLogPath)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize audit logging: %v", err)
+		} else {
+			log.Printf("Audit logging enabled: %s", cfg.AuditLogPath)
+			defer auditLogger.Close()
+		}
+	} else {
+		log.Println("Audit logging is disabled (set AUDIT_LOG_PATH to enable)")
+	}
+
 	// Set embedded frontend
 	server.EmbeddedFrontend = assets.FrontendFS
 
 	// Create and start server
-	srv := server.New(cfg, db)
+	srv, err := server.New(cfg, db)
+	if err != nil {
+		log.Fatalf("Failed to initialize server: %v", err)
+	}
 
 	log.Fatal(srv.Start())
 }

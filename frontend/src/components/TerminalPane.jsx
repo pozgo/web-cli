@@ -59,8 +59,19 @@ const TerminalPane = ({
     // Build WebSocket URL
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let wsUrl = `${protocol}//${window.location.host}/api/terminal/ws?shell=${encodeURIComponent(currentShell)}`;
+
+    // Handle composite SSH key ID (format: "source:id" e.g., "local:123" or "vault:keyname")
     if (currentSshKeyId) {
-      wsUrl += `&sshKeyId=${encodeURIComponent(currentSshKeyId)}`;
+      const colonIndex = currentSshKeyId.indexOf(':');
+      if (colonIndex > 0) {
+        const source = currentSshKeyId.substring(0, colonIndex);
+        const keyIdentifier = currentSshKeyId.substring(colonIndex + 1);
+        wsUrl += `&sshKeyId=${encodeURIComponent(keyIdentifier)}`;
+        wsUrl += `&sshKeySource=${encodeURIComponent(source)}`;
+      } else {
+        // Fallback for legacy format (just the ID)
+        wsUrl += `&sshKeyId=${encodeURIComponent(currentSshKeyId)}`;
+      }
     }
 
     xterm.write('\r\n\x1b[33mConnecting to terminal...\x1b[0m\r\n');

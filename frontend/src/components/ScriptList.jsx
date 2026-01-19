@@ -22,6 +22,10 @@ import {
   Chip,
 } from '@mui/material';
 import { Add, Delete, Edit, Code, Upload, ContentCopy } from '@mui/icons-material';
+import SourceChip from './shared/SourceChip';
+import GroupSelector from './shared/GroupSelector';
+import StorageSelector from './shared/StorageSelector';
+import GroupInput from './shared/GroupInput';
 
 /**
  * ScriptList component - displays and manages bash scripts stored in the database
@@ -38,14 +42,20 @@ const ScriptList = () => {
     description: '',
     content: '',
     filename: '',
+    group: 'default',
+    storage: 'local',
   });
+  const [selectedGroup, setSelectedGroup] = useState('all');
 
   // Fetch scripts from API
   const fetchScripts = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/bash-scripts');
+      const url = selectedGroup === 'all'
+        ? '/api/bash-scripts'
+        : `/api/bash-scripts?group=${encodeURIComponent(selectedGroup)}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch scripts');
@@ -75,10 +85,10 @@ const ScriptList = () => {
     }
   };
 
-  // Load scripts on component mount
+  // Load scripts on component mount or when group changes
   useEffect(() => {
     fetchScripts();
-  }, []);
+  }, [selectedGroup]);
 
   // Handle file upload
   const handleFileUpload = (event) => {
@@ -140,6 +150,7 @@ const ScriptList = () => {
         description: fullScript.description || '',
         content: fullScript.content || '',
         filename: fullScript.filename || '',
+        group: fullScript.group || 'default',
       });
       setOpenDialog(true);
     }
@@ -153,6 +164,8 @@ const ScriptList = () => {
       description: '',
       content: '',
       filename: '',
+      group: 'default',
+      storage: 'local',
     });
     setOpenDialog(true);
   };
@@ -165,17 +178,25 @@ const ScriptList = () => {
     }
 
     try {
+      // Choose base API endpoint based on storage selection (only for new scripts)
+      const baseEndpoint = !editingScript && formData.storage === 'vault'
+        ? '/api/vault/bash-scripts'
+        : '/api/bash-scripts';
+
       const url = editingScript
         ? `/api/bash-scripts/${editingScript.id}`
-        : '/api/bash-scripts';
+        : baseEndpoint;
       const method = editingScript ? 'PUT' : 'POST';
+
+      // Don't send storage field to the API
+      const { storage, ...dataToSend } = formData;
 
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
@@ -207,13 +228,20 @@ const ScriptList = () => {
         <Typography variant="h5" component="h2">
           Bash Scripts
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={handleAdd}
-        >
-          Add Script
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <GroupSelector
+            resourceType="bash-scripts"
+            selectedGroup={selectedGroup}
+            onGroupChange={setSelectedGroup}
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAdd}
+          >
+            Add Script
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -250,13 +278,15 @@ const ScriptList = () => {
                 <TableCell>Name</TableCell>
                 <TableCell>Filename</TableCell>
                 <TableCell>Description</TableCell>
+                <TableCell>Group</TableCell>
+                <TableCell>Source</TableCell>
                 <TableCell>Created At</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {scripts.map((script) => (
-                <TableRow key={script.id}>
+                <TableRow key={script.id || script.name}>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Code fontSize="small" color="primary" />
@@ -276,6 +306,10 @@ const ScriptList = () => {
                     )}
                   </TableCell>
                   <TableCell>{script.description || '-'}</TableCell>
+                  <TableCell>{script.group || 'default'}</TableCell>
+                  <TableCell>
+                    <SourceChip source={script.source} />
+                  </TableCell>
                   <TableCell>
                     {new Date(script.created_at).toLocaleString()}
                   </TableCell>
@@ -294,6 +328,8 @@ const ScriptList = () => {
                       onClick={() => handleEdit(script)}
                       aria-label="edit"
                       sx={{ mr: 1 }}
+                      disabled={script.source === 'vault'}
+                      title={script.source === 'vault' ? 'Vault items cannot be edited here' : 'Edit'}
                     >
                       <Edit />
                     </IconButton>
@@ -301,6 +337,8 @@ const ScriptList = () => {
                       color="error"
                       onClick={() => handleDelete(script.id)}
                       aria-label="delete"
+                      disabled={script.source === 'vault'}
+                      title={script.source === 'vault' ? 'Vault items cannot be deleted here' : 'Delete'}
                     >
                       <Delete />
                     </IconButton>
@@ -340,6 +378,20 @@ const ScriptList = () => {
             placeholder="Brief description of what this script does"
             sx={{ mb: 2 }}
           />
+          <GroupInput
+            value={formData.group}
+            onChange={(value) => setFormData({ ...formData, group: value })}
+            resourceType="bash-scripts"
+            helperText="Select an existing group or type a new one"
+          />
+          {!editingScript && (
+            <Box sx={{ mb: 2 }}>
+              <StorageSelector
+                value={formData.storage}
+                onChange={(value) => setFormData({ ...formData, storage: value })}
+              />
+            </Box>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <TextField
               margin="dense"

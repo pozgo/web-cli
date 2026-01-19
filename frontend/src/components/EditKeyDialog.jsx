@@ -21,6 +21,7 @@ import {
 const EditKeyDialog = ({ open, onClose, onKeyUpdated, keyData }) => {
   const [name, setName] = useState('');
   const [privateKey, setPrivateKey] = useState('');
+  const [group, setGroup] = useState('default');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +30,7 @@ const EditKeyDialog = ({ open, onClose, onKeyUpdated, keyData }) => {
     if (keyData) {
       setName(keyData.name || '');
       setPrivateKey(keyData.private_key || '');
+      setGroup(keyData.group || 'default');
     }
   }, [keyData]);
 
@@ -59,6 +61,7 @@ const EditKeyDialog = ({ open, onClose, onKeyUpdated, keyData }) => {
         body: JSON.stringify({
           name: name.trim(),
           private_key: privateKey,  // Don't trim - SSH keys need their newlines preserved
+          group: group.trim() || 'default',
         }),
       });
 
@@ -132,6 +135,19 @@ b3BlbnNzaC1rZXktdjEAAAAABG5vbmUA..."
                 fontSize: '0.875rem',
               },
             }}
+          />
+
+          <TextField
+            margin="dense"
+            label="Group"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            placeholder="default"
+            helperText="Group for organizing SSH keys (default: default)"
+            disabled={loading}
           />
 
           <Box sx={{ mt: 2 }}>

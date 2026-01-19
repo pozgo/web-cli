@@ -9,6 +9,8 @@ import {
   Alert,
   Box,
 } from '@mui/material';
+import StorageSelector from './shared/StorageSelector';
+import GroupInput from './shared/GroupInput';
 
 /**
  * AddServerDialog component - dialog for adding new servers
@@ -22,6 +24,8 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
   const [ipAddress, setIPAddress] = useState('');
   const [port, setPort] = useState('22');
   const [username, setUsername] = useState('root');
+  const [group, setGroup] = useState('default');
+  const [storage, setStorage] = useState('local');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -67,7 +71,10 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/servers', {
+      // Choose API endpoint based on storage selection
+      const endpoint = storage === 'vault' ? '/api/vault/servers' : '/api/servers';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,6 +84,7 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
           ip_address: ipAddress.trim() || undefined,
           port: portNum,
           username: username.trim() || 'root',
+          group: group.trim() || 'default',
         }),
       });
 
@@ -90,6 +98,8 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
       setIPAddress('');
       setPort('22');
       setUsername('root');
+      setGroup('default');
+      setStorage('local');
       setError(null);
       onServerAdded();
     } catch (err) {
@@ -106,6 +116,8 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
       setIPAddress('');
       setPort('22');
       setUsername('root');
+      setGroup('default');
+      setStorage('local');
       setError(null);
       onClose();
     }
@@ -178,6 +190,22 @@ const AddServerDialog = ({ open, onClose, onServerAdded }) => {
             helperText="Username for SSH connections (default: root)"
             disabled={loading}
           />
+
+          <GroupInput
+            value={group}
+            onChange={setGroup}
+            resourceType="servers"
+            disabled={loading}
+            helperText="Select an existing group or type a new one"
+          />
+
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <StorageSelector
+              value={storage}
+              onChange={setStorage}
+              disabled={loading}
+            />
+          </Box>
 
           <Box sx={{ mt: 2 }}>
             <Alert severity="info">

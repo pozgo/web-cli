@@ -22,6 +22,10 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Add, Delete, Edit, Visibility, VisibilityOff, ContentCopy } from '@mui/icons-material';
+import SourceChip from './shared/SourceChip';
+import GroupSelector from './shared/GroupSelector';
+import StorageSelector from './shared/StorageSelector';
+import GroupInput from './shared/GroupInput';
 
 /**
  * EnvVariableList component - displays and manages encrypted environment variables
@@ -38,15 +42,21 @@ const EnvVariableList = () => {
     name: '',
     value: '',
     description: '',
+    group: 'default',
+    storage: 'local',
   });
   const [showFormValue, setShowFormValue] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState('all');
 
   // Fetch environment variables from API
   const fetchEnvVars = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/env-variables');
+      const url = selectedGroup === 'all'
+        ? '/api/env-variables'
+        : `/api/env-variables?group=${encodeURIComponent(selectedGroup)}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch environment variables');
@@ -76,10 +86,10 @@ const EnvVariableList = () => {
     }
   };
 
-  // Load env vars on component mount
+  // Load env vars on component mount or when group changes
   useEffect(() => {
     fetchEnvVars();
-  }, []);
+  }, [selectedGroup]);
 
   // Toggle value visibility for a specific variable
   const handleToggleVisibility = async (id) => {
@@ -140,6 +150,7 @@ const EnvVariableList = () => {
       name: envVar.name,
       value: value || '',
       description: envVar.description || '',
+      group: envVar.group || 'default',
     });
     setShowFormValue(false);
     setOpenDialog(true);
@@ -152,6 +163,8 @@ const EnvVariableList = () => {
       name: '',
       value: '',
       description: '',
+      group: 'default',
+      storage: 'local',
     });
     setShowFormValue(false);
     setOpenDialog(true);
@@ -165,17 +178,25 @@ const EnvVariableList = () => {
     }
 
     try {
+      // Choose base API endpoint based on storage selection (only for new env vars)
+      const baseEndpoint = !editingVar && formData.storage === 'vault'
+        ? '/api/vault/env-variables'
+        : '/api/env-variables';
+
       const url = editingVar
         ? `/api/env-variables/${editingVar.id}`
-        : '/api/env-variables';
+        : baseEndpoint;
       const method = editingVar ? 'PUT' : 'POST';
+
+      // Don't send storage field to the API
+      const { storage, ...dataToSend } = formData;
 
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
@@ -198,13 +219,20 @@ const EnvVariableList = () => {
         <Typography variant="h5" component="h2">
           Environment Variables
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={handleAdd}
-        >
-          Add Variable
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <GroupSelector
+            resourceType="env-variables"
+            selectedGroup={selectedGroup}
+            onGroupChange={setSelectedGroup}
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAdd}
+          >
+            Add Variable
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -241,13 +269,15 @@ const EnvVariableList = () => {
                 <TableCell>Name</TableCell>
                 <TableCell>Value</TableCell>
                 <TableCell>Description</TableCell>
+                <TableCell>Group</TableCell>
+                <TableCell>Source</TableCell>
                 <TableCell>Created At</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {envVars.map((envVar) => (
-                <TableRow key={envVar.id}>
+                <TableRow key={envVar.id || envVar.name}>
                   <TableCell>
                     <Box
                       sx={{
@@ -290,6 +320,10 @@ const EnvVariableList = () => {
                     </Box>
                   </TableCell>
                   <TableCell>{envVar.description || '-'}</TableCell>
+                  <TableCell>{envVar.group || 'default'}</TableCell>
+                  <TableCell>
+                    <SourceChip source={envVar.source} />
+                  </TableCell>
                   <TableCell>
                     {new Date(envVar.created_at).toLocaleString()}
                   </TableCell>
@@ -299,6 +333,8 @@ const EnvVariableList = () => {
                       onClick={() => handleEdit(envVar)}
                       aria-label="edit"
                       sx={{ mr: 1 }}
+                      disabled={envVar.source === 'vault'}
+                      title={envVar.source === 'vault' ? 'Vault items cannot be edited here' : 'Edit'}
                     >
                       <Edit />
                     </IconButton>
@@ -306,6 +342,8 @@ const EnvVariableList = () => {
                       color="error"
                       onClick={() => handleDelete(envVar.id)}
                       aria-label="delete"
+                      disabled={envVar.source === 'vault'}
+                      title={envVar.source === 'vault' ? 'Vault items cannot be deleted here' : 'Delete'}
                     >
                       <Delete />
                     </IconButton>
@@ -371,6 +409,20 @@ const EnvVariableList = () => {
             placeholder="Brief description of this variable"
             sx={{ mb: 2 }}
           />
+          <GroupInput
+            value={formData.group}
+            onChange={(value) => setFormData({ ...formData, group: value })}
+            resourceType="env-variables"
+            helperText="Select an existing group or type a new one"
+          />
+          {!editingVar && (
+            <Box sx={{ mb: 2 }}>
+              <StorageSelector
+                value={formData.storage}
+                onChange={(value) => setFormData({ ...formData, storage: value })}
+              />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>

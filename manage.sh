@@ -2,7 +2,8 @@
 
 # Management script for web-cli
 # Usage:
-#   ./manage.sh start   - Start the server
+#   ./manage.sh start   - Start the server (with auth)
+#   ./manage.sh dev     - Start the server WITHOUT auth (dev mode)
 #   ./manage.sh stop    - Stop the server
 #   ./manage.sh restart - Restart the server
 #   ./manage.sh status  - Check if server is running
@@ -35,8 +36,11 @@ is_running() {
     return 1
 }
 
-# Function to start the server
+# Function to start the server (with optional auth)
+# Usage: start [noauth]
 start() {
+    local noauth="${1:-}"
+
     if is_running; then
         echo -e "${YELLOW}Server is already running (PID: $(cat $PID_FILE))${NC}"
         exit 1
@@ -50,26 +54,48 @@ start() {
         exit 1
     fi
 
-    # Generate random password for testing
-    echo -e "${YELLOW}Generating test credentials...${NC}"
-    
-    # Check if openssl is available
-    if command -v openssl &> /dev/null; then
-        AUTH_PASSWORD=$(openssl rand -base64 16)
+    if [ "$noauth" = "noauth" ]; then
+        # Start without authentication (dev mode)
+        export AUTH_ENABLED=false
+        echo -e "${YELLOW}Starting in DEV MODE (no authentication)${NC}"
+
+        # Start the server in background without auth
+        ./$APP_NAME &
+        PID=$!
+        echo $PID > "$PID_FILE"
+
+        sleep 1
+
+        if is_running; then
+            echo -e "${GREEN}$APP_NAME started successfully (PID: $PID)${NC}"
+            echo -e "${GREEN}Access the application at http://localhost:$PORT${NC}"
+            echo -e "${RED}WARNING: Authentication is DISABLED${NC}"
+        else
+            echo -e "${RED}Failed to start $APP_NAME${NC}"
+            rm -f "$PID_FILE"
+            exit 1
+        fi
     else
-        # Fallback to simple random generation
-        AUTH_PASSWORD="test-$(date +%s)-$(( RANDOM % 10000 ))"
-    fi
-    
-    AUTH_USERNAME="admin"
-    
-    # Export environment variables for authentication
-    export AUTH_ENABLED=true
-    export AUTH_USERNAME="$AUTH_USERNAME"
-    export AUTH_PASSWORD="$AUTH_PASSWORD"
-    
-    # Save credentials to file for reference
-    cat > .web-cli-credentials << EOF
+        # Generate random password for testing
+        echo -e "${YELLOW}Generating test credentials...${NC}"
+
+        # Check if openssl is available
+        if command -v openssl &> /dev/null; then
+            AUTH_PASSWORD=$(openssl rand -base64 16)
+        else
+            # Fallback to simple random generation
+            AUTH_PASSWORD="test-$(date +%s)-$(( RANDOM % 10000 ))"
+        fi
+
+        AUTH_USERNAME="admin"
+
+        # Export environment variables for authentication
+        export AUTH_ENABLED=true
+        export AUTH_USERNAME="$AUTH_USERNAME"
+        export AUTH_PASSWORD="$AUTH_PASSWORD"
+
+        # Save credentials to file for reference
+        cat > .web-cli-credentials << EOF
 # Web CLI Test Credentials
 # Generated: $(date)
 # ========================================
@@ -82,37 +108,43 @@ curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$PORT/api/health
 # Web Browser:
 Visit http://localhost:$PORT and login with the credentials above
 EOF
-    
-    echo ""
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  Test Credentials (saved to .web-cli-credentials)${NC}"
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${YELLOW}  Username: ${NC}$AUTH_USERNAME"
-    echo -e "${YELLOW}  Password: ${NC}$AUTH_PASSWORD"
-    echo -e "${GREEN}========================================${NC}"
-    echo ""
-    
-    # Start the server in background with auth enabled
-    ./$APP_NAME &
-    PID=$!
-    echo $PID > "$PID_FILE"
 
-    sleep 1
+        echo ""
+        echo -e "${GREEN}========================================${NC}"
+        echo -e "${GREEN}  Test Credentials (saved to .web-cli-credentials)${NC}"
+        echo -e "${GREEN}========================================${NC}"
+        echo -e "${YELLOW}  Username: ${NC}$AUTH_USERNAME"
+        echo -e "${YELLOW}  Password: ${NC}$AUTH_PASSWORD"
+        echo -e "${GREEN}========================================${NC}"
+        echo ""
 
-    if is_running; then
-        echo -e "${GREEN}$APP_NAME started successfully (PID: $PID)${NC}"
-        echo -e "${GREEN}Access the application at http://localhost:$PORT${NC}"
-        echo -e "${YELLOW}Authentication is ENABLED - use credentials above${NC}"
-        echo ""
-        echo -e "${YELLOW}Quick test:${NC}"
-        echo -e "  curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$PORT/api/health"
-        echo ""
-    else
-        echo -e "${RED}Failed to start $APP_NAME${NC}"
-        rm -f "$PID_FILE"
-        rm -f .web-cli-credentials
-        exit 1
+        # Start the server in background with auth enabled
+        ./$APP_NAME &
+        PID=$!
+        echo $PID > "$PID_FILE"
+
+        sleep 1
+
+        if is_running; then
+            echo -e "${GREEN}$APP_NAME started successfully (PID: $PID)${NC}"
+            echo -e "${GREEN}Access the application at http://localhost:$PORT${NC}"
+            echo -e "${YELLOW}Authentication is ENABLED - use credentials above${NC}"
+            echo ""
+            echo -e "${YELLOW}Quick test:${NC}"
+            echo -e "  curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$PORT/api/health"
+            echo ""
+        else
+            echo -e "${RED}Failed to start $APP_NAME${NC}"
+            rm -f "$PID_FILE"
+            rm -f .web-cli-credentials
+            exit 1
+        fi
     fi
+}
+
+# Function to start in dev mode (no auth)
+dev() {
+    start noauth
 }
 
 # Function to stop the server
@@ -218,6 +250,9 @@ case "${1:-}" in
     start)
         start
         ;;
+    dev)
+        dev
+        ;;
     stop)
         stop
         ;;
@@ -234,10 +269,11 @@ case "${1:-}" in
         reset_data
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|fresh|reset}"
+        echo "Usage: $0 {start|stop|restart|status|fresh|reset|dev}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start the server"
+        echo "  start   - Start the server (with authentication)"
+        echo "  dev     - Start the server WITHOUT authentication (dev mode)"
         echo "  stop    - Stop the server"
         echo "  restart - Restart the server"
         echo "  status  - Check if server is running"

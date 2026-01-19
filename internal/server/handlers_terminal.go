@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pozgo/web-cli/internal/repository"
@@ -46,13 +48,47 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 
 	// Check if SSH key is requested
 	var sshPrivateKey string
-	if sshKeyIDStr := r.URL.Query().Get("sshKeyId"); sshKeyIDStr != "" {
-		sshKeyID, err := strconv.ParseInt(sshKeyIDStr, 10, 64)
-		if err == nil {
-			repo := repository.NewSSHKeyRepository(s.db)
-			key, err := repo.GetByID(sshKeyID)
+	sshKeyID := r.URL.Query().Get("sshKeyId")
+	sshKeySource := r.URL.Query().Get("sshKeySource")
+
+	if sshKeyID != "" {
+		if sshKeySource == "vault" {
+			// Fetch SSH key from Vault by name
+			client, err := s.getVaultClient()
 			if err == nil {
-				sshPrivateKey = key.PrivateKey
+				ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+				defer cancel()
+				// Try to get key from default group first, then try without group
+				key, err := client.GetSSHKey(ctx, "default", sshKeyID)
+				if err != nil || key == nil {
+					// Try listing all groups and searching
+					groups, _ := client.ListSSHKeyGroups(ctx)
+					for _, group := range groups {
+						key, err = client.GetSSHKey(ctx, group, sshKeyID)
+						if err == nil && key != nil {
+							break
+						}
+					}
+				}
+				if key != nil {
+					sshPrivateKey = key.PrivateKey
+					log.Printf("Loaded SSH key '%s' from Vault", sshKeyID)
+				} else {
+					log.Printf("Failed to find SSH key '%s' in Vault", sshKeyID)
+				}
+			} else {
+				log.Printf("Failed to get Vault client for SSH key: %v", err)
+			}
+		} else {
+			// Fetch SSH key from local database by ID
+			keyID, err := strconv.ParseInt(sshKeyID, 10, 64)
+			if err == nil {
+				repo := repository.NewSSHKeyRepository(s.db)
+				key, err := repo.GetByID(keyID)
+				if err == nil {
+					sshPrivateKey = key.PrivateKey
+					log.Printf("Loaded SSH key ID %d from local database", keyID)
+				}
 			}
 		}
 	}

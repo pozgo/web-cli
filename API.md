@@ -17,6 +17,7 @@ Complete API reference for the Web CLI application. All endpoints return JSON re
 - [Environment Variables Management](#environment-variables-management)
 - [Bash Scripts Management](#bash-scripts-management)
 - [Script Presets Management](#script-presets-management)
+- [Vault Integration](#vault-integration)
 - [Interactive Terminal](#interactive-terminal-websocket)
 - [Error Responses](#error-responses)
 - [Security Considerations](#security-considerations)
@@ -76,6 +77,19 @@ Default port is `7777`, configurable via `-port` flag or `PORT` environment vari
 | `/script-presets/{id}` | GET | Get single script preset |
 | `/script-presets/{id}` | PUT | Update script preset |
 | `/script-presets/{id}` | DELETE | Delete script preset |
+| `/vault/config` | GET | Get Vault configuration |
+| `/vault/config` | POST | Create/update Vault configuration |
+| `/vault/config` | DELETE | Delete Vault configuration |
+| `/vault/status` | GET | Get Vault connection status |
+| `/vault/test` | POST | Test Vault connection |
+| `/vault/ssh-keys` | GET | List SSH keys from Vault |
+| `/vault/ssh-keys` | POST | Create SSH key in Vault |
+| `/vault/servers` | GET | List servers from Vault |
+| `/vault/servers` | POST | Create server in Vault |
+| `/vault/env-variables` | GET | List environment variables from Vault |
+| `/vault/env-variables` | POST | Create environment variable in Vault |
+| `/vault/bash-scripts` | GET | List bash scripts from Vault |
+| `/vault/bash-scripts` | POST | Create bash script in Vault |
 
 ## Authentication
 
@@ -2018,6 +2032,534 @@ Delete a script preset from the system.
 
 ```bash
 curl -X DELETE http://localhost:7777/api/script-presets/1
+```
+
+---
+
+## Vault Integration
+
+HashiCorp Vault integration allows you to store and retrieve secrets (SSH keys, servers, environment variables, and bash scripts) from an external Vault server. This provides centralized secrets management with additional security features.
+
+### Get Vault Configuration
+
+Retrieve the current Vault configuration (token is never returned).
+
+**Endpoint**: `GET /vault/config`
+
+**Response**: `200 OK`
+
+```json
+{
+  "id": 1,
+  "address": "https://vault.example.com:8200",
+  "namespace": "admin",
+  "mount_path": "secret",
+  "enabled": true,
+  "has_token": true,
+  "created_at": "2025-01-15T10:00:00Z",
+  "updated_at": "2025-01-15T10:00:00Z"
+}
+```
+
+**Fields**:
+- `address` (string): Vault server URL
+- `namespace` (string): Optional Vault namespace
+- `mount_path` (string): KV secrets engine mount path (default: "secret")
+- `enabled` (boolean): Whether Vault integration is active
+- `has_token` (boolean): Indicates if a token is configured (token value never exposed)
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/config
+```
+
+---
+
+### Create/Update Vault Configuration
+
+Configure or update the Vault connection settings.
+
+**Endpoint**: `POST /vault/config`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "address": "https://vault.example.com:8200",
+  "token": "hvs.your-vault-token",
+  "namespace": "admin",
+  "mount_path": "secret",
+  "enabled": true
+}
+```
+
+**Fields**:
+- `address` (string, required): Vault server URL
+- `token` (string, required for new config): Vault authentication token (encrypted with AES-256-GCM before storage)
+- `namespace` (string, optional): Vault namespace for enterprise deployments
+- `mount_path` (string, optional): KV secrets engine mount path (default: "secret")
+- `enabled` (boolean, optional): Enable/disable Vault integration
+
+**Response**: `200 OK`
+
+```json
+{
+  "id": 1,
+  "address": "https://vault.example.com:8200",
+  "namespace": "admin",
+  "mount_path": "secret",
+  "enabled": true,
+  "has_token": true,
+  "created_at": "2025-01-15T10:00:00Z",
+  "updated_at": "2025-01-15T10:00:00Z"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Missing required fields (address or token)
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "https://vault.example.com:8200",
+    "token": "hvs.your-vault-token",
+    "mount_path": "secret",
+    "enabled": true
+  }'
+```
+
+---
+
+### Delete Vault Configuration
+
+Remove the Vault configuration.
+
+**Endpoint**: `DELETE /vault/config`
+
+**Response**: `204 No Content`
+
+**Example**:
+
+```bash
+curl -X DELETE http://localhost:7777/api/vault/config
+```
+
+---
+
+### Get Vault Status
+
+Check the current Vault connection status.
+
+**Endpoint**: `GET /vault/status`
+
+**Response**: `200 OK`
+
+```json
+{
+  "configured": true,
+  "enabled": true,
+  "connected": true,
+  "address": "https://vault.example.com:8200",
+  "vault_sealed": false
+}
+```
+
+**Fields**:
+- `configured` (boolean): Whether Vault settings exist
+- `enabled` (boolean): Whether Vault integration is enabled
+- `connected` (boolean): Whether connection test passed
+- `address` (string): Vault server URL
+- `error` (string, optional): Error message if connection failed
+- `vault_sealed` (boolean, optional): Whether Vault is sealed
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/status
+```
+
+---
+
+### Test Vault Connection
+
+Test the connection to Vault and initialize the secrets structure.
+
+**Endpoint**: `POST /vault/test`
+
+**Response**: `200 OK`
+
+```json
+{
+  "configured": true,
+  "enabled": true,
+  "connected": true,
+  "address": "https://vault.example.com:8200",
+  "vault_sealed": false
+}
+```
+
+**Note**: On successful connection, this endpoint automatically initializes the Vault secrets structure (`webcli/ssh-keys`, `webcli/servers`, `webcli/env-variables`, `webcli/bash-scripts`).
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/test
+```
+
+---
+
+### List SSH Keys from Vault
+
+Retrieve all SSH keys stored in Vault.
+
+**Endpoint**: `GET /vault/ssh-keys`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "name": "production-key",
+    "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----",
+    "group": "production",
+    "created_at": "2025-01-15T10:00:00Z"
+  }
+]
+```
+
+**Error Responses**:
+- `400 Bad Request`: Vault not configured or disabled
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/ssh-keys
+```
+
+---
+
+### Create SSH Key in Vault
+
+Store a new SSH key in Vault.
+
+**Endpoint**: `POST /vault/ssh-keys`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "production-key",
+  "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----",
+  "group": "production"
+}
+```
+
+**Fields**:
+- `name` (string, required): Key identifier
+- `private_key` (string, required): PEM-encoded SSH private key
+- `group` (string, optional): Group for organization (default: "default")
+
+**Response**: `201 Created`
+
+```json
+{
+  "name": "production-key",
+  "group": "production",
+  "created_at": "2025-01-15T10:00:00Z",
+  "source": "vault"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Missing required fields or Vault not configured
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/ssh-keys \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "production-key",
+    "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----",
+    "group": "production"
+  }'
+```
+
+---
+
+### List Servers from Vault
+
+Retrieve all server configurations stored in Vault.
+
+**Endpoint**: `GET /vault/servers`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "name": "prod-web-01",
+    "ip_address": "10.0.0.50",
+    "port": 22,
+    "username": "deploy",
+    "group": "production"
+  }
+]
+```
+
+**Error Responses**:
+- `400 Bad Request`: Vault not configured or disabled
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/servers
+```
+
+---
+
+### Create Server in Vault
+
+Store a new server configuration in Vault.
+
+**Endpoint**: `POST /vault/servers`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "prod-web-01",
+  "ip_address": "10.0.0.50",
+  "port": 22,
+  "username": "deploy",
+  "group": "production"
+}
+```
+
+**Fields**:
+- `name` (string, optional): Server name/alias (at least one of name or ip_address required)
+- `ip_address` (string, optional): Server IP address or hostname
+- `port` (integer, optional): SSH port (default: 22)
+- `username` (string, optional): SSH username (default: "root")
+- `group` (string, optional): Group for organization (default: "default")
+
+**Response**: `201 Created`
+
+```json
+{
+  "name": "prod-web-01",
+  "ip_address": "10.0.0.50",
+  "port": 22,
+  "username": "deploy",
+  "group": "production",
+  "source": "vault"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Missing required fields or Vault not configured
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/servers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "prod-web-01",
+    "ip_address": "10.0.0.50",
+    "port": 22,
+    "username": "deploy",
+    "group": "production"
+  }'
+```
+
+---
+
+### List Environment Variables from Vault
+
+Retrieve all environment variables stored in Vault.
+
+**Endpoint**: `GET /vault/env-variables`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "name": "API_SECRET",
+    "value": "super-secret-value",
+    "description": "External API authentication secret",
+    "group": "production"
+  }
+]
+```
+
+**Note**: Unlike local environment variables, Vault env variables are returned with full values (not masked).
+
+**Error Responses**:
+- `400 Bad Request`: Vault not configured or disabled
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/env-variables
+```
+
+---
+
+### Create Environment Variable in Vault
+
+Store a new environment variable in Vault.
+
+**Endpoint**: `POST /vault/env-variables`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "API_SECRET",
+  "value": "super-secret-value",
+  "description": "External API authentication secret",
+  "group": "production"
+}
+```
+
+**Fields**:
+- `name` (string, required): Variable name
+- `value` (string, required): Variable value
+- `description` (string, optional): Description
+- `group` (string, optional): Group for organization (default: "default")
+
+**Response**: `201 Created`
+
+```json
+{
+  "name": "API_SECRET",
+  "description": "External API authentication secret",
+  "group": "production",
+  "source": "vault"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Missing required fields or Vault not configured
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/env-variables \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "API_SECRET",
+    "value": "super-secret-value",
+    "description": "External API authentication secret",
+    "group": "production"
+  }'
+```
+
+---
+
+### List Bash Scripts from Vault
+
+Retrieve all bash scripts stored in Vault.
+
+**Endpoint**: `GET /vault/bash-scripts`
+
+**Response**: `200 OK`
+
+```json
+[
+  {
+    "name": "deploy-script",
+    "description": "Production deployment script",
+    "content": "#!/bin/bash\necho \"Deploying...\"",
+    "filename": "deploy.sh",
+    "group": "production"
+  }
+]
+```
+
+**Error Responses**:
+- `400 Bad Request`: Vault not configured or disabled
+
+**Example**:
+
+```bash
+curl http://localhost:7777/api/vault/bash-scripts
+```
+
+---
+
+### Create Bash Script in Vault
+
+Store a new bash script in Vault.
+
+**Endpoint**: `POST /vault/bash-scripts`
+
+**Request Headers**:
+- `Content-Type: application/json`
+
+**Request Body**:
+
+```json
+{
+  "name": "deploy-script",
+  "description": "Production deployment script",
+  "content": "#!/bin/bash\nset -e\necho \"Deploying...\"\ncd /opt/app\ngit pull\nsystemctl restart app",
+  "filename": "deploy.sh",
+  "group": "production"
+}
+```
+
+**Fields**:
+- `name` (string, required): Script name
+- `content` (string, required): Bash script content
+- `description` (string, optional): Description
+- `filename` (string, optional): Original filename
+- `group` (string, optional): Group for organization (default: "default")
+
+**Response**: `201 Created`
+
+```json
+{
+  "name": "deploy-script",
+  "description": "Production deployment script",
+  "filename": "deploy.sh",
+  "group": "production",
+  "source": "vault"
+}
+```
+
+**Error Responses**:
+- `400 Bad Request`: Missing required fields or Vault not configured
+
+**Example**:
+
+```bash
+curl -X POST http://localhost:7777/api/vault/bash-scripts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "deploy-script",
+    "description": "Production deployment script",
+    "content": "#!/bin/bash\necho \"Deploying...\"",
+    "group": "production"
+  }'
 ```
 
 ---

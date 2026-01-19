@@ -199,6 +199,37 @@ var migrations = []Migration{
 			CREATE INDEX IF NOT EXISTS idx_script_presets_script_id ON script_presets(script_id);
 		`,
 	},
+	{
+		Version:     15,
+		Description: "Create vault_config table for HashiCorp Vault integration",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS vault_config (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				address TEXT NOT NULL,
+				token_encrypted BLOB NOT NULL,
+				namespace TEXT,
+				mount_path TEXT NOT NULL DEFAULT 'secret',
+				enabled INTEGER NOT NULL DEFAULT 1,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NOT NULL
+			);
+		`,
+	},
+	{
+		Version:     16,
+		Description: "Add group_name column to resource tables for grouping/categorization",
+		SQL: `
+			ALTER TABLE servers ADD COLUMN group_name TEXT NOT NULL DEFAULT 'default';
+			ALTER TABLE ssh_keys ADD COLUMN group_name TEXT NOT NULL DEFAULT 'default';
+			ALTER TABLE env_variables ADD COLUMN group_name TEXT NOT NULL DEFAULT 'default';
+			ALTER TABLE bash_scripts ADD COLUMN group_name TEXT NOT NULL DEFAULT 'default';
+
+			CREATE INDEX IF NOT EXISTS idx_servers_group ON servers(group_name);
+			CREATE INDEX IF NOT EXISTS idx_ssh_keys_group ON ssh_keys(group_name);
+			CREATE INDEX IF NOT EXISTS idx_env_variables_group ON env_variables(group_name);
+			CREATE INDEX IF NOT EXISTS idx_bash_scripts_group ON bash_scripts(group_name);
+		`,
+	},
 }
 
 // runMigrations executes all pending migrations

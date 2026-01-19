@@ -29,6 +29,12 @@ func (r *EnvVariableRepository) Create(envVar *models.EnvVariableCreate) (*model
 		return nil, fmt.Errorf("value is required")
 	}
 
+	// Default group to "default" if not provided
+	group := envVar.Group
+	if group == "" {
+		group = "default"
+	}
+
 	// Encrypt the value
 	encryptedValue, err := database.Encrypt(envVar.Value)
 	if err != nil {
@@ -38,10 +44,11 @@ func (r *EnvVariableRepository) Create(envVar *models.EnvVariableCreate) (*model
 	now := time.Now().UTC()
 
 	result, err := r.db.GetConnection().Exec(
-		"INSERT INTO env_variables (name, value_encrypted, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+		"INSERT INTO env_variables (name, value_encrypted, description, group_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 		envVar.Name,
 		encryptedValue,
 		envVar.Description,
+		group,
 		now,
 		now,
 	)
@@ -59,6 +66,7 @@ func (r *EnvVariableRepository) Create(envVar *models.EnvVariableCreate) (*model
 		Name:        envVar.Name,
 		Value:       envVar.Value, // Return unencrypted value
 		Description: envVar.Description,
+		Group:       group,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}, nil
@@ -70,9 +78,9 @@ func (r *EnvVariableRepository) GetByID(id int64) (*models.EnvVariable, error) {
 	var encryptedValue []byte
 
 	err := r.db.GetConnection().QueryRow(
-		"SELECT id, name, value_encrypted, description, created_at, updated_at FROM env_variables WHERE id = ?",
+		"SELECT id, name, value_encrypted, description, group_name, created_at, updated_at FROM env_variables WHERE id = ?",
 		id,
-	).Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.CreatedAt, &envVar.UpdatedAt)
+	).Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.Group, &envVar.CreatedAt, &envVar.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("environment variable not found")
@@ -97,9 +105,9 @@ func (r *EnvVariableRepository) GetByName(name string) (*models.EnvVariable, err
 	var encryptedValue []byte
 
 	err := r.db.GetConnection().QueryRow(
-		"SELECT id, name, value_encrypted, description, created_at, updated_at FROM env_variables WHERE name = ?",
+		"SELECT id, name, value_encrypted, description, group_name, created_at, updated_at FROM env_variables WHERE name = ?",
 		name,
-	).Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.CreatedAt, &envVar.UpdatedAt)
+	).Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.Group, &envVar.CreatedAt, &envVar.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("environment variable not found")
@@ -121,7 +129,7 @@ func (r *EnvVariableRepository) GetByName(name string) (*models.EnvVariable, err
 // GetAll retrieves all environment variables
 func (r *EnvVariableRepository) GetAll() ([]*models.EnvVariable, error) {
 	rows, err := r.db.GetConnection().Query(
-		"SELECT id, name, value_encrypted, description, created_at, updated_at FROM env_variables ORDER BY name ASC",
+		"SELECT id, name, value_encrypted, description, group_name, created_at, updated_at FROM env_variables ORDER BY group_name ASC, name ASC",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query environment variables: %w", err)
@@ -133,7 +141,7 @@ func (r *EnvVariableRepository) GetAll() ([]*models.EnvVariable, error) {
 		var envVar models.EnvVariable
 		var encryptedValue []byte
 
-		if err := rows.Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.CreatedAt, &envVar.UpdatedAt); err != nil {
+		if err := rows.Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.Group, &envVar.CreatedAt, &envVar.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan environment variable: %w", err)
 		}
 
@@ -152,6 +160,69 @@ func (r *EnvVariableRepository) GetAll() ([]*models.EnvVariable, error) {
 	}
 
 	return envVars, nil
+}
+
+// GetByGroup retrieves all environment variables in a specific group
+func (r *EnvVariableRepository) GetByGroup(group string) ([]*models.EnvVariable, error) {
+	rows, err := r.db.GetConnection().Query(
+		"SELECT id, name, value_encrypted, description, group_name, created_at, updated_at FROM env_variables WHERE group_name = ? ORDER BY name ASC",
+		group,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query environment variables: %w", err)
+	}
+	defer rows.Close()
+
+	var envVars []*models.EnvVariable
+	for rows.Next() {
+		var envVar models.EnvVariable
+		var encryptedValue []byte
+
+		if err := rows.Scan(&envVar.ID, &envVar.Name, &encryptedValue, &envVar.Description, &envVar.Group, &envVar.CreatedAt, &envVar.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan environment variable: %w", err)
+		}
+
+		// Decrypt the value
+		decryptedValue, err := database.Decrypt(encryptedValue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt value: %w", err)
+		}
+		envVar.Value = decryptedValue
+
+		envVars = append(envVars, &envVar)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating environment variables: %w", err)
+	}
+
+	return envVars, nil
+}
+
+// GetGroups retrieves all distinct group names
+func (r *EnvVariableRepository) GetGroups() ([]string, error) {
+	rows, err := r.db.GetConnection().Query(
+		"SELECT DISTINCT group_name FROM env_variables ORDER BY group_name ASC",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []string
+	for rows.Next() {
+		var group string
+		if err := rows.Scan(&group); err != nil {
+			return nil, fmt.Errorf("failed to scan group: %w", err)
+		}
+		groups = append(groups, group)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating groups: %w", err)
+	}
+
+	return groups, nil
 }
 
 // Update updates an existing environment variable
@@ -176,6 +247,10 @@ func (r *EnvVariableRepository) Update(id int64, update *models.EnvVariableUpdat
 		existing.Description = update.Description
 	}
 
+	if update.Group != "" {
+		existing.Group = update.Group
+	}
+
 	existing.UpdatedAt = time.Now().UTC()
 
 	// Encrypt the value
@@ -185,10 +260,11 @@ func (r *EnvVariableRepository) Update(id int64, update *models.EnvVariableUpdat
 	}
 
 	_, err = r.db.GetConnection().Exec(
-		"UPDATE env_variables SET name = ?, value_encrypted = ?, description = ?, updated_at = ? WHERE id = ?",
+		"UPDATE env_variables SET name = ?, value_encrypted = ?, description = ?, group_name = ?, updated_at = ? WHERE id = ?",
 		existing.Name,
 		encryptedValue,
 		existing.Description,
+		existing.Group,
 		existing.UpdatedAt,
 		id,
 	)

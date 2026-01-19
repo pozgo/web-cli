@@ -24,7 +24,7 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material';
-import { PlayArrow, ArrowBack, ExpandMore, Code, Save, BookmarkBorder } from '@mui/icons-material';
+import { PlayArrow, ArrowBack, ExpandMore, Code, Save, BookmarkBorder, Storage, Lock } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -86,8 +86,8 @@ const LocalScripts = () => {
       if (response.ok) {
         const data = await response.json();
         setEnvVars(data || []);
-        // Select all by default
-        setSelectedEnvVarIds((data || []).map(v => v.id));
+        // Select all by default - use name for Vault items, ID for SQLite items
+        setSelectedEnvVarIds((data || []).map(v => v.source === 'vault' ? v.name : v.id));
       }
     } catch (err) {
       console.error('Failed to fetch env vars:', err);
@@ -271,12 +271,48 @@ const LocalScripts = () => {
     setSuccess(null);
     setOutput('');
 
+    // Find the selected script object to determine its source
+    const selectedScriptObj = scripts.find(s =>
+      (s.source === 'vault' ? s.name === selectedScriptId : s.id === parseInt(selectedScriptId, 10))
+    );
+
     const payload = {
-      script_id: parseInt(selectedScriptId, 10),
       user: user || 'root',
       is_remote: false,
-      env_var_ids: selectedEnvVarIds,
     };
+
+    // For script: use name for Vault items, ID for SQLite items
+    if (selectedScriptObj) {
+      if (selectedScriptObj.source === 'vault') {
+        payload.script_name = selectedScriptObj.name;
+        payload.script_group = selectedScriptObj.group || 'default';
+      } else {
+        payload.script_id = selectedScriptObj.id;
+      }
+    }
+
+    // For env vars: separate SQLite IDs from Vault names (with groups)
+    const sqliteEnvVarIds = [];
+    const vaultEnvVarNames = [];
+    const vaultEnvVarGroups = [];
+    selectedEnvVarIds.forEach(id => {
+      const envVar = envVars.find(v => v.id === id || v.name === id);
+      if (envVar) {
+        if (envVar.source === 'vault') {
+          vaultEnvVarNames.push(envVar.name);
+          vaultEnvVarGroups.push(envVar.group || 'default');
+        } else if (envVar.id) {
+          sqliteEnvVarIds.push(envVar.id);
+        }
+      }
+    });
+    if (sqliteEnvVarIds.length > 0) {
+      payload.env_var_ids = sqliteEnvVarIds;
+    }
+    if (vaultEnvVarNames.length > 0) {
+      payload.env_var_names = vaultEnvVarNames;
+      payload.env_var_groups = vaultEnvVarGroups;
+    }
 
     if (password) {
       payload.sudo_password = password;
@@ -417,12 +453,21 @@ const LocalScripts = () => {
                     <em>Choose a script...</em>
                   </MenuItem>
                   {scripts.map((script) => (
-                    <MenuItem key={script.id} value={script.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Code fontSize="small" />
-                        {script.name}
-                        {script.filename && (
-                          <Chip label={script.filename} size="small" variant="outlined" />
+                    <MenuItem key={script.source === 'vault' ? `vault-${script.name}` : script.id} value={script.source === 'vault' ? script.name : script.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Code fontSize="small" />
+                          {script.name}
+                          {script.filename && (
+                            <Chip label={script.filename} size="small" variant="outlined" />
+                          )}
+                        </Box>
+                        {script.source && (
+                          script.source === 'vault' ? (
+                            <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                          ) : (
+                            <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                          )
                         )}
                       </Box>
                     </MenuItem>
@@ -465,35 +510,47 @@ const LocalScripts = () => {
                       ) : selected.length === envVars.length ? (
                         <Chip size="small" label={`All (${envVars.length})`} />
                       ) : (
-                        selected.map((id) => {
-                          const envVar = envVars.find(v => v.id === id);
+                        selected.map((val) => {
+                          const envVar = envVars.find(v => (v.source === 'vault' ? v.name === val : v.id === val));
                           return envVar ? (
-                            <Chip key={id} size="small" label={envVar.name} />
+                            <Chip key={val} size="small" label={envVar.name} />
                           ) : null;
                         })
                       )}
                     </Box>
                   )}
                 >
-                  {envVars.map((envVar) => (
-                    <MenuItem key={envVar.id} value={envVar.id}>
-                      <Checkbox checked={selectedEnvVarIds.includes(envVar.id)} />
-                      <Box sx={{ ml: 1 }}>
-                        <Typography>{envVar.name}</Typography>
-                        {envVar.description && (
-                          <Typography variant="caption" color="text.secondary">
-                            {envVar.description}
-                          </Typography>
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))}
+                  {envVars.map((envVar) => {
+                    const envVarValue = envVar.source === 'vault' ? envVar.name : envVar.id;
+                    return (
+                      <MenuItem key={envVar.source === 'vault' ? `vault-${envVar.name}` : envVar.id} value={envVarValue}>
+                        <Checkbox checked={selectedEnvVarIds.includes(envVarValue)} />
+                        <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                          <Box>
+                            <Typography>{envVar.name}</Typography>
+                            {envVar.description && (
+                              <Typography variant="caption" color="text.secondary">
+                                {envVar.description}
+                              </Typography>
+                            )}
+                          </Box>
+                          {envVar.source && (
+                            envVar.source === 'vault' ? (
+                              <Chip icon={<Lock fontSize="small" />} label="Vault" size="small" variant="outlined" color="secondary" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            ) : (
+                              <Chip icon={<Storage fontSize="small" />} label="Local" size="small" variant="outlined" sx={{ fontWeight: 500, height: 20, '& .MuiChip-label': { px: 0.75 } }} />
+                            )
+                          )}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
               <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
                 <Button
                   size="small"
-                  onClick={() => setSelectedEnvVarIds(envVars.map(v => v.id))}
+                  onClick={() => setSelectedEnvVarIds(envVars.map(v => v.source === 'vault' ? v.name : v.id))}
                   disabled={loading || selectedEnvVarIds.length === envVars.length}
                 >
                   Select All
