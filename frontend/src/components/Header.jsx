@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { AppBar, Toolbar, Typography, Box, IconButton, Tooltip } from '@mui/material';
-import { Terminal, Api } from '@mui/icons-material';
+import { Api } from '@mui/icons-material';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import VaultIcon from './shared/VaultIcon';
+import logo from "../../assets/favicon.ico"
 
 /**
  * Header component - displays the application header with logo and theme toggle
@@ -29,7 +30,7 @@ const Header = ({ mode, toggleTheme }) => {
           }}
           onClick={() => navigate('/')}
         >
-          <Terminal sx={{ mr: 2 }} />
+          <img src={logo} alt="logo" width="24px" style={{marginRight: '5px'}}/>
           <Typography variant="h6" component="div">
             Web CLI
           </Typography>
