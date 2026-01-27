@@ -1,4 +1,4 @@
-# Web CLI
+# <img src="docs/images/webcli.png" width="24px"/> Web CLI
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)](https://react.dev)
