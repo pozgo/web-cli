@@ -62,15 +62,17 @@ const TerminalPane = ({
 
     // Handle composite SSH key ID (format: "source:id" e.g., "local:123" or "vault:keyname")
     if (currentSshKeyId) {
-      const colonIndex = currentSshKeyId.indexOf(':');
+      // Ensure sshKeyId is a string (handle legacy numeric IDs from older versions)
+      const sshKeyIdStr = String(currentSshKeyId);
+      const colonIndex = sshKeyIdStr.indexOf(':');
       if (colonIndex > 0) {
-        const source = currentSshKeyId.substring(0, colonIndex);
-        const keyIdentifier = currentSshKeyId.substring(colonIndex + 1);
+        const source = sshKeyIdStr.substring(0, colonIndex);
+        const keyIdentifier = sshKeyIdStr.substring(colonIndex + 1);
         wsUrl += `&sshKeyId=${encodeURIComponent(keyIdentifier)}`;
         wsUrl += `&sshKeySource=${encodeURIComponent(source)}`;
       } else {
         // Fallback for legacy format (just the ID)
-        wsUrl += `&sshKeyId=${encodeURIComponent(currentSshKeyId)}`;
+        wsUrl += `&sshKeyId=${encodeURIComponent(sshKeyIdStr)}`;
       }
     }
 
