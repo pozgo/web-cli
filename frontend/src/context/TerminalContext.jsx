@@ -35,14 +35,27 @@ const getInitialState = () => {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
         // Restore saved tabs with connected: false
-        const restoredTabs = parsed.map((tab) => ({
-          ...tab,
-          connected: false,
-        }));
-        return {
-          tabs: restoredTabs,
-          activeTabId: restoredTabs[0].id,
-        };
+        // Sanitize and validate data to handle legacy formats from older versions
+        const restoredTabs = parsed
+          .filter((tab) => tab && typeof tab === 'object' && tab.id)
+          .map((tab) => ({
+            // Ensure required properties exist with safe defaults
+            id: String(tab.id),
+            title: typeof tab.title === 'string' && tab.title ? tab.title : 'Terminal',
+            // Ensure sshKeyId is always a string (older versions stored numeric IDs)
+            sshKeyId: tab.sshKeyId != null ? String(tab.sshKeyId) : '',
+            // Ensure shell is a string with default fallback
+            shell: typeof tab.shell === 'string' && tab.shell ? tab.shell : 'bash',
+            connected: false,
+          }));
+        
+        // Only use restored tabs if we have valid ones
+        if (restoredTabs.length > 0) {
+          return {
+            tabs: restoredTabs,
+            activeTabId: restoredTabs[0].id,
+          };
+        }
       }
     }
   } catch (e) {
