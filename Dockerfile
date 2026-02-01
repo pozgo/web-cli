@@ -94,8 +94,12 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=go-builder /app/web-cli /app/web-cli
 
+# Copy healthcheck script
+COPY scripts/healthcheck.sh /app/healthcheck.sh
+
 # Set ownership
-RUN chown webcli:webcli /app/web-cli
+RUN chown webcli:webcli /app/web-cli /app/healthcheck.sh && \
+    chmod +x /app/healthcheck.sh
 
 # Switch to non-root user
 USER webcli
@@ -103,9 +107,9 @@ USER webcli
 # Expose default port
 EXPOSE 7777
 
-# Health check using curl
+# Health check using script (auto-detects http/https based on TLS config)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -sf http://localhost:7777/api/health || exit 1
+    CMD ["/app/healthcheck.sh"]
 
 # Environment variables with defaults
 # Note: WEBCLI_ENCRYPTION_KEY_PATH is a file path to the key file, not the secret itself

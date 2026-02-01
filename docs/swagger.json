@@ -826,6 +826,26 @@
                 }
             }
         },
+        "/health": {
+            "get": {
+                "description": "Check if the server is running and responsive. This endpoint does not require authentication.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/history": {
             "get": {
                 "security": [
@@ -3831,6 +3851,16 @@
                 "error": {
                     "type": "string",
                     "example": "Invalid request body"
+                }
+            }
+        },
+        "internal_server.HealthResponse": {
+            "description": "Health check response",
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
                 }
             }
         },

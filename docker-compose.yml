@@ -96,7 +96,7 @@ services:
       # CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
 
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:7777/api/health"]
+      test: ["CMD", "/app/healthcheck.sh"]
       interval: 30s
       timeout: 5s
       retries: 3

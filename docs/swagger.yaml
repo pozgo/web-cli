@@ -656,6 +656,13 @@ definitions:
         example: Invalid request body
         type: string
     type: object
+  internal_server.HealthResponse:
+    description: Health check response
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
   internal_server.ShellInfo:
     description: Information about an available shell
     properties:
@@ -1206,6 +1213,20 @@ paths:
       summary: List all environment variable groups
       tags:
       - Environment Variables
+  /health:
+    get:
+      description: Check if the server is running and responsive. This endpoint does
+        not require authentication.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_server.HealthResponse'
+      summary: Health check
+      tags:
+      - System
   /history:
     get:
       consumes:

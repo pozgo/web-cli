@@ -13,10 +13,11 @@ var ErrAuthMisconfigured = errors.New("authentication is enabled but no credenti
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
-	Enabled  bool
-	Username string
-	Password string
-	APIToken string
+	Enabled      bool
+	Username     string
+	Password     string
+	APIToken     string
+	ExcludePaths []string // Paths exempt from authentication (e.g., /api/health)
 }
 
 // LoadAuthConfig loads authentication configuration from environment
@@ -59,6 +60,14 @@ func BasicAuth(config *AuthConfig) func(http.Handler) http.Handler {
 			if !config.Enabled {
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			// Skip auth for excluded paths (e.g., health checks)
+			for _, path := range config.ExcludePaths {
+				if r.URL.Path == path {
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
 
 			// Check for API token first (Bearer token in Authorization header)
