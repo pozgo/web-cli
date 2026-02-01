@@ -218,3 +218,121 @@ func TestBasicAuth_ConstantTimeComparison(t *testing.T) {
 		t.Error("Invalid credentials should not authenticate")
 	}
 }
+
+func TestBasicAuth_ExcludedPaths(t *testing.T) {
+	config := &AuthConfig{
+		Enabled:      true,
+		Username:     "admin",
+		Password:     "secret",
+		ExcludePaths: []string{"/api/health"},
+	}
+
+	handler := BasicAuth(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+
+	tests := []struct {
+		name           string
+		path           string
+		withAuth       bool
+		expectedStatus int
+	}{
+		{
+			name:           "excluded path without auth",
+			path:           "/api/health",
+			withAuth:       false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "excluded path with auth",
+			path:           "/api/health",
+			withAuth:       true,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "non-excluded path without auth",
+			path:           "/api/keys",
+			withAuth:       false,
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "non-excluded path with auth",
+			path:           "/api/keys",
+			withAuth:       true,
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.withAuth {
+				req.SetBasicAuth("admin", "secret")
+			}
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d for %s, got %d", tt.expectedStatus, tt.path, w.Code)
+			}
+		})
+	}
+}
+
+func TestBasicAuth_ExcludedPathsEmpty(t *testing.T) {
+	// Verify that with no excluded paths, all paths require auth
+	config := &AuthConfig{
+		Enabled:      true,
+		Username:     "admin",
+		Password:     "secret",
+		ExcludePaths: nil,
+	}
+
+	handler := BasicAuth(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status %d when ExcludePaths is nil, got %d", http.StatusUnauthorized, w.Code)
+	}
+}
+
+func TestBasicAuth_ExcludedPathsMultiple(t *testing.T) {
+	config := &AuthConfig{
+		Enabled:      true,
+		Username:     "admin",
+		Password:     "secret",
+		ExcludePaths: []string{"/api/health", "/api/readyz"},
+	}
+
+	handler := BasicAuth(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	tests := []struct {
+		path           string
+		expectedStatus int
+	}{
+		{"/api/health", http.StatusOK},
+		{"/api/readyz", http.StatusOK},
+		{"/api/keys", http.StatusUnauthorized},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d for %s, got %d", tt.expectedStatus, tt.path, w.Code)
+			}
+		})
+	}
+}

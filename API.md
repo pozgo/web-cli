@@ -113,19 +113,24 @@ export AUTH_API_TOKEN="your-api-token-here"
 
 **HTTP Basic Auth:**
 ```bash
-curl -u admin:password http://localhost:7777/api/health
+curl -u admin:password http://localhost:7777/api/keys
 ```
 
 **Bearer Token:**
 ```bash
-curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/keys
 ```
+
+### Unauthenticated Endpoints
+
+The `/api/health` endpoint is exempt from authentication to allow Docker health checks, Kubernetes probes, and load balancer monitoring to work without credentials.
 
 ### Security Features
 - Constant-time credential comparison (prevents timing attacks)
 - Supports both Basic Auth and Bearer token simultaneously
 - Bearer token takes precedence if both are provided
 - bcrypt password hashing for stored credentials
+- Health endpoint excluded from auth for container orchestration compatibility
 
 **Note**: In production environments, always enable authentication and use HTTPS.
 
@@ -135,9 +140,11 @@ curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
 
 ### Get Server Health Status
 
-Check if the server is running and responsive.
+Check if the server is running and responsive. This endpoint does **not** require authentication, making it suitable for Docker health checks, Kubernetes probes, and load balancer health monitoring.
 
 **Endpoint**: `GET /health`
+
+**Authentication**: None required
 
 **Response**: `200 OK`
 
@@ -150,7 +157,11 @@ Check if the server is running and responsive.
 **Example**:
 
 ```bash
+# No authentication needed
 curl http://localhost:7777/api/health
+
+# Also works with HTTPS when TLS is enabled
+curl -k https://localhost:7777/api/health
 ```
 
 ---

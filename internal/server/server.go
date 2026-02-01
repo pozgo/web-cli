@@ -52,13 +52,17 @@ func (s *Server) setupRoutes() {
 	// Load auth configuration
 	authConfig := middleware.LoadAuthConfig()
 
-	// Apply authentication middleware to ALL routes (frontend + API)
+	// Exempt health endpoint from authentication
+	// Health checks must work without credentials for Docker/K8s probes
+	authConfig.ExcludePaths = []string{"/api/health"}
+
+	// Apply authentication middleware to all routes except excluded paths
 	s.router.Use(middleware.BasicAuth(authConfig))
 
 	// API routes
 	api := s.router.PathPrefix("/api").Subrouter()
 
-	// Health endpoint (authenticated)
+	// Health endpoint (unauthenticated - excluded from auth middleware)
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	// SSH Keys endpoints
@@ -166,7 +170,13 @@ func (s *Server) setupRoutes() {
 	s.serveFrontend()
 }
 
-// handleHealth returns the health status of the server
+// handleHealth godoc
+// @Summary Health check
+// @Description Check if the server is running and responsive. This endpoint does not require authentication.
+// @Tags System
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Router /health [get]
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

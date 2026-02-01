@@ -47,27 +47,41 @@ export AUTH_API_TOKEN="your-api-token-here"
 - Supports both methods simultaneously (token takes precedence)
 - **Startup validation**: Server fails fast if auth is enabled but credentials are missing
 
+### Unauthenticated Endpoints
+
+The following endpoints are exempt from authentication to support container health checks and orchestration probes:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/health` | Health check for Docker/Kubernetes probes |
+
 ### Usage Examples
 
 ```bash
-# Basic Auth
-curl -u admin:password http://localhost:7777/api/health
+# Health check (no auth required)
+curl http://localhost:7777/api/health
 
-# Bearer Token
-curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
+# Basic Auth (required for all other endpoints)
+curl -u admin:password http://localhost:7777/api/keys
+
+# Bearer Token (required for all other endpoints)
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/keys
 ```
 
 ### Testing Authentication
 
 ```bash
-# Should fail (401 Unauthorized)
+# Health endpoint - always succeeds (no auth required)
 curl http://localhost:7777/api/health
 
+# Other endpoints - should fail without auth (401 Unauthorized)
+curl http://localhost:7777/api/keys
+
 # Should succeed with Basic Auth
-curl -u admin:password http://localhost:7777/api/health
+curl -u admin:password http://localhost:7777/api/keys
 
 # Should succeed with Bearer token
-curl -H "Authorization: Bearer your-token" http://localhost:7777/api/health
+curl -H "Authorization: Bearer your-token" http://localhost:7777/api/keys
 ```
 
 ---

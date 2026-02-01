@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pozgo/web-cli/internal/database"
+	"github.com/pozgo/web-cli/internal/middleware"
 	"github.com/pozgo/web-cli/internal/models"
 	"github.com/pozgo/web-cli/internal/repository"
 )
@@ -37,6 +38,106 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	return server, cleanup
+}
+
+func TestHandleHealth(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req, err := http.NewRequest("GET", "/api/health", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	server.handleHealth(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status: got %v want %v", status, http.StatusOK)
+	}
+
+	expected := `{"status":"ok"}`
+	if rr.Body.String() != expected {
+		t.Errorf("Handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+	}
+
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Handler returned wrong content type: got %v want application/json", contentType)
+	}
+}
+
+func TestHandleHealth_NoAuthRequired(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Simulate full routing with auth middleware enabled
+	router := mux.NewRouter()
+
+	authConfig := &middleware.AuthConfig{
+		Enabled:      true,
+		Username:     "admin",
+		Password:     "secret",
+		ExcludePaths: []string{"/api/health"},
+	}
+	router.Use(middleware.BasicAuth(authConfig))
+
+	api := router.PathPrefix("/api").Subrouter()
+	api.HandleFunc("/health", server.handleHealth).Methods("GET")
+	api.HandleFunc("/keys", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods("GET")
+
+	tests := []struct {
+		name           string
+		path           string
+		withAuth       bool
+		expectedStatus int
+	}{
+		{
+			name:           "health without auth succeeds",
+			path:           "/api/health",
+			withAuth:       false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "health with auth succeeds",
+			path:           "/api/health",
+			withAuth:       true,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "other endpoint without auth fails",
+			path:           "/api/keys",
+			withAuth:       false,
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "other endpoint with auth succeeds",
+			path:           "/api/keys",
+			withAuth:       true,
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tt.path, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+			if tt.withAuth {
+				req.SetBasicAuth("admin", "secret")
+			}
+
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+
+			if status := rr.Code; status != tt.expectedStatus {
+				t.Errorf("%s: got status %v, want %v", tt.name, status, tt.expectedStatus)
+			}
+		})
+	}
 }
 
 func TestHandleListBashScripts(t *testing.T) {
